@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   ArrowRight,
@@ -12,8 +12,10 @@ import {
   ExternalLink,
   Target,
   CircleCheck,
+  Telescope,
+  Lock,
 } from "lucide-react";
-import { analisarNicho, type Analise } from "@/lib/analisarNicho";
+import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -63,11 +65,58 @@ function soma(n?: Analise["notas"]): number {
   );
 }
 
+/* ------------------------------------------------------------------ Brand */
+function Brand({ subtitle = true }: { subtitle?: boolean }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="relative grid h-10 w-10 place-items-center rounded-xl"
+        style={{
+          background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+          boxShadow: "0 0 0 1px rgba(255,255,255,.10), 0 8px 26px rgba(99,102,241,.55)",
+        }}
+      >
+        <Telescope size={20} color="#fff" strokeWidth={2} />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-1 rounded-2xl opacity-60 blur-md"
+          style={{ background: "radial-gradient(circle,#8b5cf6,transparent 70%)" }}
+        />
+      </div>
+      <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold tracking-tight">
+        Agent SaaS Skill
+        {subtitle && (
+          <span className="font-medium text-[#9a9ab4]"> · pesquisa de micro SaaS</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- Index */
 function Index() {
+  const [autenticado, setAutenticado] = useState(false);
+  const [senha, setSenha] = useState("");
+
   const [input, setInput] = useState(NICHOS_PADRAO);
   const [results, setResults] = useState<Analise[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+
+  // Mantém o login após refresh (na mesma aba).
+  useEffect(() => {
+    const s = sessionStorage.getItem("ass_senha");
+    if (s) {
+      setSenha(s);
+      setAutenticado(true);
+    }
+  }, []);
+
+  function aoEntrar(s: string) {
+    sessionStorage.setItem("ass_senha", s);
+    setSenha(s);
+    setAutenticado(true);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,7 +132,7 @@ function Index() {
     for (const n of nichos) {
       setStatus(`Pesquisando "${n}"…`);
       try {
-        const r = await analisarNicho({ data: n });
+        const r = await analisarNicho({ data: { nicho: n, senha } });
         acc.push(r);
       } catch (err: any) {
         acc.push({
@@ -111,6 +160,19 @@ function Index() {
       className="relative min-h-screen overflow-x-hidden px-5 py-10 text-[#ECECF4]"
       style={{ fontFamily: BODY, background: "#07070c" }}
     >
+      {/* Grade futurista sutil */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
+          backgroundSize: "46px 46px",
+          opacity: 0.04,
+          maskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
+        }}
+      />
       {/* Glows de fundo */}
       <div
         aria-hidden
@@ -123,7 +185,9 @@ function Index() {
         style={{ background: "#7c3aed" }}
       />
 
-      {!results ? (
+      {!autenticado ? (
+        <LoginGate onOk={aoEntrar} />
+      ) : !results ? (
         <SearchView
           input={input}
           setInput={setInput}
@@ -137,6 +201,79 @@ function Index() {
 
       {loading && <Overlay status={status} />}
     </main>
+  );
+}
+
+/* --------------------------------------------------------------- Login */
+function LoginGate({ onOk }: { onOk: (senha: string) => void }) {
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [verificando, setVerificando] = useState(false);
+
+  async function entrar(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setVerificando(true);
+    try {
+      const r = await verificarSenha({ data: senha });
+      if (r.ok) onOk(senha);
+      else setErro("Senha incorreta.");
+    } catch {
+      setErro("Não consegui verificar agora. Tente de novo.");
+    } finally {
+      setVerificando(false);
+    }
+  }
+
+  return (
+    <div className="relative z-10 mx-auto flex min-h-[78vh] w-full max-w-sm flex-col items-center justify-center">
+      <div className="mb-8">
+        <Brand subtitle={false} />
+      </div>
+      <form
+        onSubmit={entrar}
+        className="w-full rounded-[22px] border border-white/10 p-6 backdrop-blur-xl"
+        style={{
+          background: "rgba(255,255,255,.045)",
+          boxShadow: "0 24px 60px -20px rgba(0,0,0,.6)",
+        }}
+      >
+        <div className="mb-4 flex items-center gap-2 text-[#c4b5fd]">
+          <Lock size={16} />
+          <span style={{ fontFamily: DISPLAY }} className="text-[15px] font-semibold">
+            Acesso restrito
+          </span>
+        </div>
+        <label htmlFor="senha" className="text-sm text-[#9a9ab4]">
+          Digite a senha para usar a ferramenta
+        </label>
+        <input
+          id="senha"
+          type="password"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          autoFocus
+          placeholder="••••••••"
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3.5 text-base text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
+        />
+        {erro && (
+          <p className="mt-2 rounded-lg bg-red-500/10 p-2 text-xs text-red-200">{erro}</p>
+        )}
+        <button
+          type="submit"
+          disabled={verificando}
+          className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl py-3.5 text-base font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+          style={{
+            fontFamily: BODY,
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
+          }}
+        >
+          {verificando ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} strokeWidth={2.4} />}
+          Entrar
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -156,20 +293,8 @@ function SearchView({
 }) {
   return (
     <div className="relative z-10 mx-auto w-full max-w-3xl">
-      <header className="mb-12 flex items-center gap-3">
-        <div
-          className="grid h-9 w-9 place-items-center rounded-xl"
-          style={{
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-            boxShadow: "0 6px 20px rgba(99,102,241,.45)",
-          }}
-        >
-          <Search size={18} color="#fff" strokeWidth={2.4} />
-        </div>
-        <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold">
-          Agent SaaS Skill{" "}
-          <span className="font-medium text-[#9a9ab4]">· pesquisa de micro SaaS</span>
-        </div>
+      <header className="mb-12">
+        <Brand />
       </header>
 
       <div className="text-center">
@@ -270,7 +395,7 @@ function Feature({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-[18px] text-center">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-[18px] text-center transition hover:border-[#8b5cf6]/40">
       <div className="mx-auto mb-2.5 grid h-10 w-10 place-items-center rounded-xl bg-[#8b5cf6]/15 text-[#c4b5fd]">
         {icon}
       </div>
@@ -294,9 +419,7 @@ function ResultsView({
   return (
     <div className="relative z-10 mx-auto w-full max-w-4xl">
       <div className="mb-8 flex items-center justify-between">
-        <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold">
-          Agent SaaS Skill
-        </div>
+        <Brand subtitle={false} />
         <button
           onClick={onReset}
           className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"

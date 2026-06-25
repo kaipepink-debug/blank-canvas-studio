@@ -122,11 +122,26 @@ Regras: traga DUAS personas distintas em "personas"; traga de 3 a 4 ideias de \
 micro SaaS em "ideias_saas". As notas vão de 0 a 10. Seja honesto, específico e \
 use números sempre que possível.`;
 
+// Senha de acesso. Pode ser sobrescrita pelo secret APP_PASSWORD na Lovable.
+function senhaValida(s: string): boolean {
+  return s === (process.env.APP_PASSWORD ?? "Mandarrari");
+}
+
+// Verifica a senha de acesso ao app (usada na tela de login).
+export const verificarSenha = createServerFn({ method: "POST" })
+  .inputValidator((senha: string) => senha)
+  .handler(async ({ data: senha }): Promise<{ ok: boolean }> => ({
+    ok: senhaValida(senha),
+  }));
+
 // Server function: roda no servidor, onde a ANTHROPIC_API_KEY fica segura.
 export const analisarNicho = createServerFn({ method: "POST" })
-  .inputValidator((nicho: string) => nicho)
-  .handler(async ({ data: nicho }): Promise<Analise> => {
+  .inputValidator((p: { nicho: string; senha: string }) => p)
+  .handler(async ({ data }): Promise<Analise> => {
+    const { nicho, senha } = data;
     const falha = (mensagem: string): Analise => ({ nicho, erro: true, mensagem });
+
+    if (!senhaValida(senha)) return falha("Senha incorreta.");
 
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) {
