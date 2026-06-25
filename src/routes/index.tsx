@@ -17,11 +17,11 @@ import { analisarNicho, type Analise } from "@/lib/analisarNicho";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NichoScope — Pesquisa de Micro SaaS" },
+      { title: "Agent SaaS Skill — Pesquisa de Micro SaaS" },
       {
         name: "description",
         content:
-          "Pesquise oportunidades de micro SaaS: ranking, dores, soluções, concorrentes e personas — com IA e dados da web.",
+          "Pesquise oportunidades de micro SaaS com o Agent SaaS Skill: ranking, dores, soluções, concorrentes e personas — com IA e dados da web.",
       },
     ],
   }),
@@ -154,7 +154,7 @@ function SearchView({
           <Search size={18} color="#fff" strokeWidth={2.4} />
         </div>
         <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold">
-          NichoScope{" "}
+          Agent SaaS Skill{" "}
           <span className="font-medium text-[#9a9ab4]">· pesquisa de micro SaaS</span>
         </div>
       </header>
@@ -282,7 +282,7 @@ function ResultsView({
     <div className="relative z-10 mx-auto w-full max-w-4xl">
       <div className="mb-8 flex items-center justify-between">
         <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold">
-          NichoScope
+          Agent SaaS Skill
         </div>
         <button
           onClick={onReset}
