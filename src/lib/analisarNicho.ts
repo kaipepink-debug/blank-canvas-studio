@@ -76,7 +76,7 @@ As notas vão de 0 a 10. Seja honesto e específico.`;
 
 // Server function: roda no servidor, onde a ANTHROPIC_API_KEY fica segura.
 export const analisarNicho = createServerFn({ method: "POST" })
-  .validator((nicho: string) => nicho)
+  .inputValidator((nicho: string) => nicho)
   .handler(async ({ data: nicho }): Promise<Analise> => {
     const falha = (mensagem: string): Analise => ({ nicho, erro: true, mensagem });
 
