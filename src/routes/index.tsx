@@ -1,29 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
+import albumHero from "@/assets/album-da-biblia.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Álbum da Bíblia" },
+      { name: "description", content: "Álbum da Bíblia — histórias que ensinam, momentos que ficam para sempre." },
+      { property: "og:title", content: "Álbum da Bíblia" },
+      { property: "og:description", content: "Álbum da Bíblia — histórias que ensinam, momentos que ficam para sempre." },
+      { property: "og:image", content: albumHero.url },
+      { name: "twitter:image", content: albumHero.url },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
+    <main className="flex min-h-screen items-center justify-center bg-white px-4">
       <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+        src={albumHero.url}
+        alt="Álbum da Bíblia - material digital para famílias e crianças de 4 a 12 anos"
+        className="max-w-full rounded-lg shadow-sm"
+        width={1200}
+        height={800}
       />
-    </div>
+    </main>
   );
 }
