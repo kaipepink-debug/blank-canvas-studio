@@ -158,54 +158,78 @@ export const analisarNicho = createServerFn({ method: "POST" })
     ];
 
     try {
-      // Loop para lidar com pause_turn (a busca server-side pode pausar e continuar).
-      for (let i = 0; i < 8; i++) {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: MODELO,
-            max_tokens: 12000,
-            thinking: { type: "adaptive" },
-            system: SYSTEM,
-            tools: [{ type: "web_search_20260209", name: "web_search" }],
-            messages,
-          }),
-        });
+      // Streaming evita o timeout 524 da Anthropic em requisições longas:
+      // a resposta vai chegando aos poucos e a conexão não expira.
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: MODELO,
+          max_tokens: 9000,
+          stream: true,
+          thinking: { type: "adaptive" },
+          system: SYSTEM,
+          tools: [{ type: "web_search_20260209", name: "web_search" }],
+          messages,
+        }),
+      });
 
-        if (!resp.ok) {
-          const corpo = await resp.text().catch(() => "");
-          return falha(`API retornou ${resp.status}: ${corpo.slice(0, 300)}`);
-        }
-
-        const json: any = await resp.json();
-        if (json?.type === "error") {
-          return falha(`Erro da API: ${json?.error?.message ?? "desconhecido"}`);
-        }
-
-        if (json?.stop_reason === "pause_turn") {
-          messages.push({ role: "assistant", content: json.content });
-          continue;
-        }
-
-        const texto: string = (json?.content ?? [])
-          .filter((b: any) => b.type === "text")
-          .map((b: any) => b.text)
-          .join("");
-        const ini = texto.indexOf("{");
-        const fim = texto.lastIndexOf("}");
-        if (ini === -1 || fim === -1) {
-          return falha(`Resposta sem JSON. Início: ${texto.slice(0, 200)}`);
-        }
-        const dados = JSON.parse(texto.slice(ini, fim + 1)) as Analise;
-        if (!dados.nicho) dados.nicho = nicho;
-        return dados;
+      if (!resp.ok || !resp.body) {
+        const corpo = await resp.text().catch(() => "");
+        return falha(`API retornou ${resp.status}: ${corpo.slice(0, 300)}`);
       }
-      return falha("A análise não foi concluída (muitas pausas).");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let texto = "";
+      let stopReason = "";
+      let apiErro = "";
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let ev: any;
+          try {
+            ev = JSON.parse(payload);
+          } catch {
+            continue;
+          }
+          if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
+            texto += ev.delta.text;
+          } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
+            stopReason = ev.delta.stop_reason;
+          } else if (ev.type === "error") {
+            apiErro = ev.error?.message ?? "erro no stream";
+          }
+        }
+      }
+
+      if (apiErro) return falha(`Erro da API: ${apiErro}`);
+      if (stopReason === "refusal") {
+        return falha("A IA recusou a análise deste nicho.");
+      }
+
+      const ini = texto.indexOf("{");
+      const fim = texto.lastIndexOf("}");
+      if (ini === -1 || fim === -1) {
+        return falha(`Resposta incompleta — tente de novo. Início: ${texto.slice(0, 150)}`);
+      }
+      const dados = JSON.parse(texto.slice(ini, fim + 1)) as Analise;
+      if (!dados.nicho) dados.nicho = nicho;
+      return dados;
     } catch (e: any) {
       return falha(`Falha no servidor: ${e?.message ?? String(e)}`);
     }
