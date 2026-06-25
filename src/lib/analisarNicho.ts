@@ -3,17 +3,35 @@ import { createServerFn } from "@tanstack/react-start";
 // Tipos do resultado estruturado da análise.
 export type SubNicho = { nome: string; descricao: string };
 export type Dor = { problema: string; custo: string };
-export type Solucao = { dor: string; ideia: string; resultado: string };
 export type Concorrente = { nome: string; preco: string; obs: string };
+export type DadosDemograficos = {
+  tamanho_mercado: string;
+  numero_de_empresas: string;
+  crescimento: string;
+  regioes: string;
+  perfil_clientes: string;
+  ticket_medio: string;
+};
 export type Persona = {
   nome_ficticio: string;
   perfil: string;
+  idade: string;
   dia_a_dia: string;
   dores_principais: string[];
   objecoes: string[];
   gatilhos_de_compra: string[];
-  onde_encontrar: string[];
+  canais: string[];
   disposicao_a_pagar: string;
+};
+export type IdeiaSaaS = {
+  nome: string;
+  descricao: string;
+  problema_que_resolve: string;
+  resultado: string;
+  publico: string;
+  modelo_cobranca: string;
+  diferencial: string;
+  mvp: string[];
 };
 export type Notas = {
   disposicao_pagar: number;
@@ -25,13 +43,15 @@ export type Fonte = { titulo: string; url: string };
 export type Analise = {
   nicho: string;
   visao_geral?: string;
+  dados_demograficos?: DadosDemograficos;
+  publico_alvo?: string;
   sub_nichos?: SubNicho[];
   dores?: Dor[];
-  solucoes?: Solucao[];
   concorrentes?: Concorrente[];
   brecha?: string;
+  personas?: Persona[];
+  ideias_saas?: IdeiaSaaS[];
   validacao?: string[];
-  persona?: Persona;
   notas?: Notas;
   veredito?: string;
   fontes?: Fonte[];
@@ -43,36 +63,64 @@ const MODELO = "claude-opus-4-8";
 
 const SYSTEM = `Você é analista sênior de oportunidades de Micro SaaS no mercado \
 brasileiro, ajudando um empreendedor NÃO-TÉCNICO que vende B2B para pequenas \
-empresas e busca escala. Use a busca na web para fundamentar com dados atuais \
-(concorrentes, preços, tamanho de mercado, tendências do Brasil). Foque em dores \
-que doem no bolso; para cada solução, descreva o RESULTADO em dinheiro/tempo.
+empresas e busca escala. Faça uma análise PROFUNDA e detalhada. Use a busca na \
+web para fundamentar com dados atuais e NÚMEROS (tamanho de mercado, nº de \
+empresas, crescimento, preços de concorrentes, demografia dos clientes). Foque \
+em dores que doem no bolso; descreva resultados em dinheiro/tempo. Considere \
+WhatsApp, Pix, iFood e regulação quando relevante.
 
 Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown) \
 exatamente neste formato:
 {
   "nicho": "string",
-  "visao_geral": "2-4 frases sobre o nicho e tamanho no Brasil",
+  "visao_geral": "3-5 frases sobre o nicho e sua relevância no Brasil",
+  "dados_demograficos": {
+    "tamanho_mercado": "faturamento/tamanho do mercado no Brasil, com número",
+    "numero_de_empresas": "quantos negócios desse tipo existem (estimativa com número)",
+    "crescimento": "tendência de crescimento, de preferência %/ano",
+    "regioes": "onde esses negócios se concentram no Brasil",
+    "perfil_clientes": "demografia dos CLIENTES FINAIS do negócio (idade, renda, comportamento)",
+    "ticket_medio": "ticket médio do negócio"
+  },
+  "publico_alvo": "quem é o COMPRADOR do SaaS (o dono do negócio): porte, perfil, maturidade digital, o que valoriza",
   "sub_nichos": [{"nome":"string","descricao":"1 linha"}],
   "dores": [{"problema":"string","custo":"quanto custa em R$ ou tempo"}],
-  "solucoes": [{"dor":"qual dor","ideia":"ideia de SaaS","resultado":"o ganho"}],
   "concorrentes": [{"nome":"string","preco":"faixa ou 'grátis'","obs":"1 linha"}],
-  "brecha": "onde há espaço/diferenciação (1-2 frases)",
+  "brecha": "onde há espaço/diferenciação real (1-2 frases)",
+  "personas": [
+    {
+      "nome_ficticio":"ex: 'Carla, dona de pet shop'",
+      "perfil":"cargo, tipo de negócio, contexto",
+      "idade":"faixa etária",
+      "dia_a_dia":"rotina e onde perde tempo/dinheiro",
+      "dores_principais":["...","..."],
+      "objecoes":["...","..."],
+      "gatilhos_de_compra":["...","..."],
+      "canais":["onde encontrá-la / como alcançá-la"],
+      "disposicao_a_pagar":"faixa de mensalidade em R$"
+    }
+  ],
+  "ideias_saas": [
+    {
+      "nome":"nome curto do produto",
+      "descricao":"o que faz, em 1-2 frases",
+      "problema_que_resolve":"a dor específica",
+      "resultado":"o ganho em R$ ou tempo",
+      "publico":"para quem dentro do nicho",
+      "modelo_cobranca":"ex: R$ X/mês por unidade",
+      "diferencial":"por que ganha dos concorrentes",
+      "mvp":["primeira feature essencial","segunda feature"]
+    }
+  ],
   "validacao": ["passo 1 sem código","passo 2","meta de pagantes"],
-  "persona": {
-    "nome_ficticio":"ex: 'Carla, dona de pet shop'",
-    "perfil":"cargo, idade, tipo de negócio, contexto",
-    "dia_a_dia":"rotina e onde perde tempo/dinheiro",
-    "dores_principais":["...","..."],
-    "objecoes":["...","..."],
-    "gatilhos_de_compra":["...","..."],
-    "onde_encontrar":["...","..."],
-    "disposicao_a_pagar":"faixa de mensalidade em R$"
-  },
   "notas": {"disposicao_pagar":0,"baixa_concorrencia":0,"facilidade_venda":0,"potencial_escala":0},
   "veredito": "recomendação final 2-3 frases",
   "fontes": [{"titulo":"string","url":"string"}]
 }
-As notas vão de 0 a 10. Seja honesto e específico.`;
+
+Regras: traga DUAS personas distintas em "personas"; traga de 3 a 4 ideias de \
+micro SaaS em "ideias_saas". As notas vão de 0 a 10. Seja honesto, específico e \
+use números sempre que possível.`;
 
 // Server function: roda no servidor, onde a ANTHROPIC_API_KEY fica segura.
 export const analisarNicho = createServerFn({ method: "POST" })
@@ -106,7 +154,7 @@ export const analisarNicho = createServerFn({ method: "POST" })
           },
           body: JSON.stringify({
             model: MODELO,
-            max_tokens: 8000,
+            max_tokens: 12000,
             thinking: { type: "adaptive" },
             system: SYSTEM,
             tools: [{ type: "web_search_20260209", name: "web_search" }],

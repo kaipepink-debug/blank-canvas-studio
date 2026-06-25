@@ -4,8 +4,9 @@ import {
   Search,
   ArrowRight,
   BarChart3,
-  Network,
   UserRound,
+  Users,
+  Lightbulb,
   Loader2,
   RotateCcw,
   ExternalLink,
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Pesquise oportunidades de micro SaaS com o Agent SaaS Skill: ranking, dores, soluções, concorrentes e personas — com IA e dados da web.",
+          "Pesquise oportunidades de micro SaaS com o Agent SaaS Skill: dados demográficos, dores, personas e ideias de micro SaaS — com IA e dados da web.",
       },
     ],
     links: [
@@ -190,8 +191,8 @@ function SearchView({
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[#9a9ab4]">
-          Informe um ou mais nichos. A IA pesquisa o mercado e devolve ranking,
-          dores, soluções, concorrentes e personas — em um relatório só.
+          Informe um ou mais nichos. A IA pesquisa o mercado e devolve dados
+          demográficos, dores, personas e ideias de micro SaaS — num relatório só.
         </p>
       </div>
 
@@ -245,14 +246,14 @@ function SearchView({
       </form>
 
       <div className="mt-8 grid gap-3.5 sm:grid-cols-3">
-        <Feature icon={<BarChart3 size={20} />} titulo="Ranking">
-          Notas de fit comparando todos os nichos.
-        </Feature>
-        <Feature icon={<Network size={20} />} titulo="Soluções">
-          Dores, ideias de SaaS e brechas de mercado.
+        <Feature icon={<BarChart3 size={20} />} titulo="Mercado">
+          Dados demográficos, tamanho e crescimento do nicho.
         </Feature>
         <Feature icon={<UserRound size={20} />} titulo="Personas">
-          Quem compra, objeções e gatilhos de compra.
+          Estudo de personas: dores, objeções e gatilhos.
+        </Feature>
+        <Feature icon={<Lightbulb size={20} />} titulo="Ideias">
+          Várias ideias de micro SaaS com cobrança e MVP.
         </Feature>
       </div>
     </div>
@@ -304,42 +305,46 @@ function ResultsView({
         </button>
       </div>
 
-      <h2
-        style={{ fontFamily: DISPLAY }}
-        className="mb-4 flex items-center gap-2 text-2xl font-bold"
-      >
-        <BarChart3 size={22} className="text-[#c4b5fd]" /> Ranking comparativo
-      </h2>
-      <div className="overflow-x-auto rounded-2xl border border-white/10">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-white/[0.05] text-left text-[#9a9ab4]">
-              <th className="p-3">#</th>
-              <th className="p-3">Nicho</th>
-              <th className="p-3 text-center">Paga?</th>
-              <th className="p-3 text-center">Baixa conc.</th>
-              <th className="p-3 text-center">Venda fácil</th>
-              <th className="p-3 text-center">Escala</th>
-              <th className="p-3 text-center">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {validos.map((r, i) => (
-              <tr key={r.nicho} className="border-t border-white/5">
-                <td className="p-3 text-[#9a9ab4]">{i + 1}º</td>
-                <td className="p-3 font-medium">{r.nicho}</td>
-                <td className="p-3 text-center">{r.notas?.disposicao_pagar ?? "-"}</td>
-                <td className="p-3 text-center">{r.notas?.baixa_concorrencia ?? "-"}</td>
-                <td className="p-3 text-center">{r.notas?.facilidade_venda ?? "-"}</td>
-                <td className="p-3 text-center">{r.notas?.potencial_escala ?? "-"}</td>
-                <td className="p-3 text-center font-semibold text-[#c4b5fd]">
-                  {soma(r.notas)}/40
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {validos.length > 1 && (
+        <>
+          <h2
+            style={{ fontFamily: DISPLAY }}
+            className="mb-4 flex items-center gap-2 text-2xl font-bold"
+          >
+            <BarChart3 size={22} className="text-[#c4b5fd]" /> Ranking comparativo
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-white/[0.05] text-left text-[#9a9ab4]">
+                  <th className="p-3">#</th>
+                  <th className="p-3">Nicho</th>
+                  <th className="p-3 text-center">Paga?</th>
+                  <th className="p-3 text-center">Baixa conc.</th>
+                  <th className="p-3 text-center">Venda fácil</th>
+                  <th className="p-3 text-center">Escala</th>
+                  <th className="p-3 text-center">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {validos.map((r, i) => (
+                  <tr key={r.nicho} className="border-t border-white/5">
+                    <td className="p-3 text-[#9a9ab4]">{i + 1}º</td>
+                    <td className="p-3 font-medium">{r.nicho}</td>
+                    <td className="p-3 text-center">{r.notas?.disposicao_pagar ?? "-"}</td>
+                    <td className="p-3 text-center">{r.notas?.baixa_concorrencia ?? "-"}</td>
+                    <td className="p-3 text-center">{r.notas?.facilidade_venda ?? "-"}</td>
+                    <td className="p-3 text-center">{r.notas?.potencial_escala ?? "-"}</td>
+                    <td className="p-3 text-center font-semibold text-[#c4b5fd]">
+                      {soma(r.notas)}/40
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <div className="mt-8 space-y-6">
         {results.map((r) => (
@@ -365,10 +370,20 @@ function H3({ children }: { children: React.ReactNode }) {
   return (
     <h4
       style={{ fontFamily: DISPLAY }}
-      className="mb-1.5 mt-4 text-[15px] font-semibold text-[#ECECF4]"
+      className="mb-1.5 mt-5 text-[15px] font-semibold text-[#ECECF4]"
     >
       {children}
     </h4>
+  );
+}
+
+function Demo({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div className="text-[11px] uppercase tracking-wide text-[#9a9ab4]">{label}</div>
+      <div className="mt-0.5 text-sm text-[#ECECF4]">{value}</div>
+    </div>
   );
 }
 
@@ -390,7 +405,8 @@ function NichoCard({ a }: { a: Analise }) {
       </section>
     );
   }
-  const p = a.persona;
+
+  const d = a.dados_demograficos;
   return (
     <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -402,6 +418,27 @@ function NichoCard({ a }: { a: Analise }) {
         </span>
       </div>
       {a.visao_geral && <p className="mt-2 text-sm text-[#cfcfe0]">{a.visao_geral}</p>}
+
+      {d && (
+        <>
+          <H3>Dados demográficos &amp; mercado</H3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Demo label="Tamanho do mercado" value={d.tamanho_mercado} />
+            <Demo label="Nº de empresas" value={d.numero_de_empresas} />
+            <Demo label="Crescimento" value={d.crescimento} />
+            <Demo label="Regiões" value={d.regioes} />
+            <Demo label="Perfil dos clientes" value={d.perfil_clientes} />
+            <Demo label="Ticket médio" value={d.ticket_medio} />
+          </div>
+        </>
+      )}
+
+      {a.publico_alvo && (
+        <>
+          <H3>Público-alvo (quem compra)</H3>
+          <p className="text-sm text-[#cfcfe0]">{a.publico_alvo}</p>
+        </>
+      )}
 
       {a.sub_nichos?.length ? (
         <>
@@ -420,22 +457,9 @@ function NichoCard({ a }: { a: Analise }) {
         <>
           <H3>Dores / Problemas</H3>
           <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
-            {a.dores.map((d, i) => (
+            {a.dores.map((x, i) => (
               <li key={i}>
-                <b>{d.problema}</b> — <i className="text-[#9a9ab4]">{d.custo}</i>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      {a.solucoes?.length ? (
-        <>
-          <H3>Soluções / Ideias de SaaS</H3>
-          <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
-            {a.solucoes.map((s, i) => (
-              <li key={i}>
-                <b>{s.ideia}</b> — resolve: {s.dor} → {s.resultado}
+                <b>{x.problema}</b> — <i className="text-[#9a9ab4]">{x.custo}</i>
               </li>
             ))}
           </ul>
@@ -464,33 +488,105 @@ function NichoCard({ a }: { a: Analise }) {
         </p>
       )}
 
-      {p && (
-        <div className="mt-4 rounded-xl border-l-2 border-amber-400 bg-amber-400/5 p-4">
+      {a.personas?.length ? (
+        <>
           <H3>
             <span className="inline-flex items-center gap-2">
-              <UserRound size={16} className="text-amber-300" /> Persona —{" "}
-              {p.nome_ficticio}
+              <Users size={16} className="text-amber-300" /> Estudo de personas
             </span>
           </H3>
-          <p className="text-sm text-[#cfcfe0]">
-            <b>Perfil:</b> {p.perfil}
-          </p>
-          <p className="mt-1 text-sm text-[#cfcfe0]">
-            <b>Dia a dia:</b> {p.dia_a_dia}
-          </p>
-          <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Dores principais</p>
-          <List items={p.dores_principais} />
-          <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Objeções</p>
-          <List items={p.objecoes} />
-          <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Gatilhos de compra</p>
-          <List items={p.gatilhos_de_compra} />
-          <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Onde encontrar</p>
-          <List items={p.onde_encontrar} />
-          <p className="mt-2 text-sm text-[#cfcfe0]">
-            <b>Disposição a pagar:</b> {p.disposicao_a_pagar}
-          </p>
-        </div>
-      )}
+          <div className="space-y-3">
+            {a.personas.map((p, i) => (
+              <div
+                key={i}
+                className="rounded-xl border-l-2 border-amber-400 bg-amber-400/5 p-4"
+              >
+                <p
+                  style={{ fontFamily: DISPLAY }}
+                  className="text-[15px] font-semibold text-[#ECECF4]"
+                >
+                  {p.nome_ficticio}
+                  {p.idade ? <span className="text-[#9a9ab4]"> · {p.idade}</span> : null}
+                </p>
+                <p className="mt-1 text-sm text-[#cfcfe0]">
+                  <b>Perfil:</b> {p.perfil}
+                </p>
+                <p className="mt-1 text-sm text-[#cfcfe0]">
+                  <b>Dia a dia:</b> {p.dia_a_dia}
+                </p>
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
+                  Dores principais
+                </p>
+                <List items={p.dores_principais} />
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Objeções</p>
+                <List items={p.objecoes} />
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
+                  Gatilhos de compra
+                </p>
+                <List items={p.gatilhos_de_compra} />
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
+                  Onde encontrar / canais
+                </p>
+                <List items={p.canais} />
+                <p className="mt-2 text-sm text-[#cfcfe0]">
+                  <b>Disposição a pagar:</b> {p.disposicao_a_pagar}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {a.ideias_saas?.length ? (
+        <>
+          <H3>
+            <span className="inline-flex items-center gap-2">
+              <Lightbulb size={16} className="text-[#c4b5fd]" /> Ideias de micro SaaS
+            </span>
+          </H3>
+          <div className="grid gap-3">
+            {a.ideias_saas.map((idea, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-4"
+              >
+                <p
+                  style={{ fontFamily: DISPLAY }}
+                  className="text-[15px] font-semibold text-[#ECECF4]"
+                >
+                  {idea.nome}
+                </p>
+                <p className="mt-1 text-sm text-[#cfcfe0]">{idea.descricao}</p>
+                <div className="mt-2 grid gap-1.5 text-sm text-[#cfcfe0]">
+                  <p>
+                    <b>Resolve:</b> {idea.problema_que_resolve}
+                  </p>
+                  <p>
+                    <b>Resultado:</b> {idea.resultado}
+                  </p>
+                  <p>
+                    <b>Público:</b> {idea.publico}
+                  </p>
+                  <p>
+                    <b>Cobrança:</b> {idea.modelo_cobranca}
+                  </p>
+                  <p>
+                    <b>Diferencial:</b> {idea.diferencial}
+                  </p>
+                </div>
+                {idea.mvp?.length ? (
+                  <>
+                    <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
+                      MVP (primeiras features)
+                    </p>
+                    <List items={idea.mvp} />
+                  </>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {a.validacao?.length ? (
         <>
