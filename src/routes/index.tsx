@@ -76,8 +76,12 @@ function Index() {
       try {
         const r = await analisarNicho({ data: n });
         acc.push(r);
-      } catch (err) {
-        acc.push({ nicho: n, erro: true });
+      } catch (err: any) {
+        acc.push({
+          nicho: n,
+          erro: true,
+          mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
+        });
       }
     }
     setResults(acc.sort((a, b) => soma(b.notas) - soma(a.notas)));
@@ -368,8 +372,13 @@ function NichoCard({ a }: { a: Analise }) {
           {a.nicho}
         </h3>
         <p className="mt-2 text-sm text-[#9a9ab4]">
-          Não foi possível analisar este nicho. Tente novamente.
+          Não foi possível analisar este nicho.
         </p>
+        {a.mensagem && (
+          <p className="mt-2 break-words rounded-lg bg-red-500/10 p-3 text-xs text-red-200">
+            {a.mensagem}
+          </p>
+        )}
       </section>
     );
   }

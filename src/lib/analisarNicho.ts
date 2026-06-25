@@ -36,6 +36,7 @@ export type Analise = {
   veredito?: string;
   fontes?: Fonte[];
   erro?: boolean;
+  mensagem?: string;
 };
 
 const MODELO = "claude-opus-4-8";
@@ -77,10 +78,12 @@ As notas vão de 0 a 10. Seja honesto e específico.`;
 export const analisarNicho = createServerFn({ method: "POST" })
   .validator((nicho: string) => nicho)
   .handler(async ({ data: nicho }): Promise<Analise> => {
+    const falha = (mensagem: string): Analise => ({ nicho, erro: true, mensagem });
+
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) {
-      throw new Error(
-        "ANTHROPIC_API_KEY não configurada. Adicione-a nos Secrets do projeto.",
+      return falha(
+        "ANTHROPIC_API_KEY não encontrada no servidor. Adicione-a nos Secrets do projeto na Lovable.",
       );
     }
 
@@ -91,45 +94,56 @@ export const analisarNicho = createServerFn({ method: "POST" })
       },
     ];
 
-    // Loop para lidar com pause_turn (a busca server-side pode pausar e continuar).
-    for (let i = 0; i < 8; i++) {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": key,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: MODELO,
-          max_tokens: 8000,
-          thinking: { type: "adaptive" },
-          system: SYSTEM,
-          tools: [{ type: "web_search_20260209", name: "web_search" }],
-          messages,
-        }),
-      });
+    try {
+      // Loop para lidar com pause_turn (a busca server-side pode pausar e continuar).
+      for (let i = 0; i < 8; i++) {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: MODELO,
+            max_tokens: 8000,
+            thinking: { type: "adaptive" },
+            system: SYSTEM,
+            tools: [{ type: "web_search_20260209", name: "web_search" }],
+            messages,
+          }),
+        });
 
-      const json: any = await resp.json();
-      if (json?.type === "error") {
-        throw new Error(json?.error?.message ?? "Erro na API da Anthropic");
+        if (!resp.ok) {
+          const corpo = await resp.text().catch(() => "");
+          return falha(`API retornou ${resp.status}: ${corpo.slice(0, 300)}`);
+        }
+
+        const json: any = await resp.json();
+        if (json?.type === "error") {
+          return falha(`Erro da API: ${json?.error?.message ?? "desconhecido"}`);
+        }
+
+        if (json?.stop_reason === "pause_turn") {
+          messages.push({ role: "assistant", content: json.content });
+          continue;
+        }
+
+        const texto: string = (json?.content ?? [])
+          .filter((b: any) => b.type === "text")
+          .map((b: any) => b.text)
+          .join("");
+        const ini = texto.indexOf("{");
+        const fim = texto.lastIndexOf("}");
+        if (ini === -1 || fim === -1) {
+          return falha(`Resposta sem JSON. Início: ${texto.slice(0, 200)}`);
+        }
+        const dados = JSON.parse(texto.slice(ini, fim + 1)) as Analise;
+        if (!dados.nicho) dados.nicho = nicho;
+        return dados;
       }
-
-      if (json?.stop_reason === "pause_turn") {
-        messages.push({ role: "assistant", content: json.content });
-        continue;
-      }
-
-      const texto: string = (json?.content ?? [])
-        .filter((b: any) => b.type === "text")
-        .map((b: any) => b.text)
-        .join("");
-      const ini = texto.indexOf("{");
-      const fim = texto.lastIndexOf("}");
-      const dados = JSON.parse(texto.slice(ini, fim + 1)) as Analise;
-      if (!dados.nicho) dados.nicho = nicho;
-      return dados;
+      return falha("A análise não foi concluída (muitas pausas).");
+    } catch (e: any) {
+      return falha(`Falha no servidor: ${e?.message ?? String(e)}`);
     }
-
-    throw new Error("A análise não foi concluída (muitas pausas).");
   });
