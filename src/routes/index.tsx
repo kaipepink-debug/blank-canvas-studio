@@ -42,8 +42,7 @@ export const Route = createFileRoute("/")({
 const DISPLAY = '"Space Grotesk", system-ui, sans-serif';
 const BODY = '"DM Sans", system-ui, sans-serif';
 
-const NICHOS_PADRAO =
-  "pet shop, estética e salão, odontologia, academia, pequenos restaurantes, advocacia, imobiliária, contabilidade";
+const NICHOS_PADRAO = "pet shop";
 const CHIPS = [
   "pet shop",
   "estética e salão",
@@ -120,39 +119,28 @@ function Index() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const nichos = input
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (!nichos.length) return;
+    const nicho = input.split(",")[0]?.trim();
+    if (!nicho) return;
 
     setLoading(true);
     setResults(null);
-    const acc: Analise[] = [];
-    for (const n of nichos) {
-      setStatus(`Pesquisando "${n}"…`);
-      try {
-        const r = await analisarNicho({ data: { nicho: n, senha } });
-        acc.push(r);
-      } catch (err: any) {
-        acc.push({
-          nicho: n,
-          erro: true,
-          mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
-        });
-      }
+    setStatus(`Pesquisando "${nicho}"…`);
+    let r: Analise;
+    try {
+      r = await analisarNicho({ data: { nicho, senha } });
+    } catch (err: any) {
+      r = {
+        nicho,
+        erro: true,
+        mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
+      };
     }
-    setResults(acc.sort((a, b) => soma(b.notas) - soma(a.notas)));
+    setResults([r]);
     setLoading(false);
   }
 
   function addChip(v: string) {
-    const atual = input
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (!atual.includes(v)) atual.push(v);
-    setInput(atual.join(", "));
+    setInput(v);
   }
 
   return (
@@ -316,7 +304,7 @@ function SearchView({
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[#9a9ab4]">
-          Informe um ou mais nichos. A IA pesquisa o mercado e devolve dados
+          Informe um nicho. A IA pesquisa o mercado e devolve dados
           demográficos, dores, personas e ideias de micro SaaS — num relatório só.
         </p>
       </div>
@@ -330,12 +318,12 @@ function SearchView({
         }}
       >
         <div className="relative">
-          <Search size={18} className="absolute left-4 top-4 text-[#9a9ab4]" />
-          <textarea
+          <Search size={18} className="absolute left-4 top-3.5 text-[#9a9ab4]" />
+          <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ex.: pet shop, estética, academia…"
-            className="min-h-[88px] w-full resize-y rounded-2xl border border-white/10 bg-black/25 py-4 pl-12 pr-4 text-base leading-relaxed text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
+            placeholder="Ex.: pet shop"
+            className="w-full rounded-2xl border border-white/10 bg-black/25 py-3.5 pl-12 pr-4 text-base text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
           />
         </div>
 
@@ -362,11 +350,11 @@ function SearchView({
             boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
           }}
         >
-          Analisar nichos
+          Analisar nicho
           <ArrowRight size={18} strokeWidth={2.4} />
         </button>
         <p className="mt-3.5 text-center text-[13px] text-[#9a9ab4]">
-          Separe vários nichos por vírgula · cada análise leva ~1–2 min
+          Uma pesquisa por vez · leva ~1–2 min
         </p>
       </form>
 
