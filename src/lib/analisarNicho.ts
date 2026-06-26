@@ -122,9 +122,15 @@ Regras: traga DUAS personas distintas em "personas"; traga de 3 a 4 ideias de \
 micro SaaS em "ideias_saas". As notas vão de 0 a 10. Seja honesto, específico e \
 use números sempre que possível.`;
 
-// Senha de acesso. Pode ser sobrescrita pelo secret APP_PASSWORD na Lovable.
+// Senhas de acesso. Você pode adicionar mais via secret APP_PASSWORD na Lovable
+// (separadas por vírgula).
 function senhaValida(s: string): boolean {
-  return s === (process.env.APP_PASSWORD ?? "Mandarrari");
+  const fixas = ["Mandarrari", "Pedro2606"];
+  const extra = (process.env.APP_PASSWORD ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return [...fixas, ...extra].includes(s);
 }
 
 // Verifica a senha de acesso ao app (usada na tela de login).
