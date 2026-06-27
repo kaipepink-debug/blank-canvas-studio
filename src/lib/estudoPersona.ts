@@ -6,12 +6,20 @@ export type SecaoPersona = {
   resposta: string;
   pontos: string[];
 };
+export type EixoNucleo = { itens: string[]; saas: string };
+export type Nucleo = {
+  dores: EixoNucleo;
+  medos: EixoNucleo;
+  desejos: EixoNucleo;
+  sintese: string;
+};
 export type Fonte = { titulo: string; url: string };
 export type EstudoPersona = {
   titulo?: string;
   persona_nome?: string;
   resumo?: string;
   secoes?: SecaoPersona[];
+  nucleo?: Nucleo;
   conclusao?: string;
   fontes?: Fonte[];
   erro?: boolean;
@@ -54,12 +62,19 @@ Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown):
       "pontos": ["ponto-chave", "..."]
     }
   ],
+  "nucleo": {
+    "dores": { "itens": ["dor MAIS aguda atual", "..."], "saas": "como o micro SaaS resolve essa dor" },
+    "medos": { "itens": ["medo / problema futuro", "..."], "saas": "como o micro SaaS evita esse medo" },
+    "desejos": { "itens": ["o que ela realmente quer — a melhor versão", "..."], "saas": "como o micro SaaS entrega isso" },
+    "sintese": "2-3 frases: como construir o micro SaaS sobre essa persona, ligando dores + medos + desejos"
+  },
   "conclusao": "o que isso significa para o produto/SaaS: como atender melhor essa persona",
   "fontes": [{"titulo":"string","url":"string"}]
 }
 
-Regras: traga as 12 seções na ordem indicada; em cada uma, de 3 a 6 pontos. Seja \
-específico, humano e fundamentado em dados/relatos reais.`;
+Regras: traga as 12 seções na ordem indicada; em cada uma, de 3 a 6 pontos. Em \
+"nucleo", destaque os pontos MAIS AGUDOS (3-4 por eixo) e ligue cada eixo a como \
+o micro SaaS resolve. Seja específico, humano e fundamentado em dados reais.`;
 
 export const estudoPersona = createServerFn({ method: "POST" })
   .inputValidator((p: { descricao: string; senha: string }) => p)

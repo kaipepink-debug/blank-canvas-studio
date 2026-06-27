@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   ArrowRight,
@@ -14,6 +14,7 @@ import {
   CircleCheck,
   Telescope,
   Lock,
+  Boxes,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
@@ -610,6 +611,8 @@ function PersonaResult({
             </div>
           )}
 
+          {dados.nucleo && <Persona4D nucleo={dados.nucleo} nome={dados.persona_nome} />}
+
           {dados.fontes?.length ? (
             <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#9a9ab4]">
               {dados.fontes.map((f, i) => (
@@ -626,6 +629,194 @@ function PersonaResult({
             </div>
           ) : null}
         </>
+      )}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- Persona 4D */
+const EIXOS_4D = [
+  { key: "dores" as const, label: "Dores", sub: "problemas atuais", color: "#f87171" },
+  { key: "medos" as const, label: "Medos", sub: "problemas futuros", color: "#a78bfa" },
+  { key: "desejos" as const, label: "Desejos", sub: "a melhor versão", color: "#34d399" },
+];
+
+function Persona4D({
+  nucleo,
+  nome,
+}: {
+  nucleo: NonNullable<EstudoPersona["nucleo"]>;
+  nome?: string;
+}) {
+  const [rx, setRx] = useState(-14);
+  const [ry, setRy] = useState(0);
+  const [sel, setSel] = useState<"dores" | "medos" | "desejos">("dores");
+  const drag = useRef({ on: false, x: 0, y: 0 });
+
+  const SIZE = 340;
+  const C = SIZE / 2;
+  const R = 120;
+  const pos = [-90, 30, 150].map((a) => {
+    const rad = (a * Math.PI) / 180;
+    return { x: C + R * Math.cos(rad), y: C + R * Math.sin(rad) };
+  });
+
+  function down(e: React.PointerEvent) {
+    drag.current = { on: true, x: e.clientX, y: e.clientY };
+  }
+  function move(e: React.PointerEvent) {
+    if (!drag.current.on) return;
+    const dx = e.clientX - drag.current.x;
+    const dy = e.clientY - drag.current.y;
+    drag.current.x = e.clientX;
+    drag.current.y = e.clientY;
+    setRy((v) => v + dx * 0.45);
+    setRx((v) => Math.max(-45, Math.min(45, v - dy * 0.45)));
+  }
+  function up() {
+    drag.current.on = false;
+  }
+
+  const ini = (nome?.trim()?.[0] ?? "P").toUpperCase();
+  const eixo = EIXOS_4D.find((e) => e.key === sel)!;
+  const dados = nucleo[sel];
+
+  return (
+    <div className="mt-8">
+      <h3
+        style={{ fontFamily: DISPLAY }}
+        className="mb-1 flex items-center gap-2 text-xl font-bold"
+      >
+        <Boxes size={20} className="text-[#c4b5fd]" /> Persona em 4D
+      </h3>
+      <p className="mb-4 text-sm text-[#9a9ab4]">
+        Arraste para girar. Clique em um eixo para expandir os pontos mais agudos
+        e como o micro SaaS resolve.
+      </p>
+
+      <div className="grid items-center gap-6 md:grid-cols-2">
+        {/* Palco 3D */}
+        <div
+          className="relative mx-auto touch-none select-none"
+          style={{ width: SIZE, height: SIZE, perspective: 1000, cursor: "grab" }}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerLeave={up}
+        >
+          <div
+            className="absolute inset-0"
+            style={{
+              transformStyle: "preserve-3d",
+              transform: `rotateX(${rx}deg) rotateY(${ry}deg)`,
+            }}
+          >
+            <svg
+              width={SIZE}
+              height={SIZE}
+              className="pointer-events-none absolute inset-0"
+            >
+              {EIXOS_4D.map((e, i) => (
+                <line
+                  key={e.key}
+                  x1={C}
+                  y1={C}
+                  x2={pos[i].x}
+                  y2={pos[i].y}
+                  stroke={e.color}
+                  strokeWidth={sel === e.key ? 3 : 1.5}
+                  strokeOpacity={sel === e.key ? 0.9 : 0.4}
+                />
+              ))}
+            </svg>
+
+            {/* Núcleo (persona) */}
+            <div
+              className="absolute grid place-items-center rounded-full"
+              style={{
+                left: C,
+                top: C,
+                width: 96,
+                height: 96,
+                transform: "translate(-50%,-50%)",
+                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                boxShadow:
+                  "0 0 40px rgba(139,92,246,.6), inset 0 0 20px rgba(255,255,255,.15)",
+              }}
+            >
+              <span style={{ fontFamily: DISPLAY }} className="text-2xl font-bold text-white">
+                {ini}
+              </span>
+            </div>
+
+            {/* Eixos */}
+            {EIXOS_4D.map((e, i) => {
+              const ativo = sel === e.key;
+              return (
+                <button
+                  key={e.key}
+                  onClick={() => setSel(e.key)}
+                  className="absolute flex cursor-pointer flex-col items-center justify-center rounded-2xl border px-3 py-2 text-center transition"
+                  style={{
+                    left: pos[i].x,
+                    top: pos[i].y,
+                    width: 116,
+                    transform: "translate(-50%,-50%)",
+                    borderColor: e.color,
+                    background: ativo ? `${e.color}26` : "rgba(255,255,255,.04)",
+                    boxShadow: ativo ? `0 0 22px ${e.color}66` : "none",
+                  }}
+                >
+                  <span className="text-sm font-semibold" style={{ color: e.color }}>
+                    {e.label}
+                  </span>
+                  <span className="text-[11px] text-[#9a9ab4]">{e.sub}</span>
+                  <span className="mt-0.5 text-[11px] text-[#cfcfe0]">
+                    {nucleo[e.key]?.itens?.length ?? 0} pontos
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Painel do eixo selecionado */}
+        <div
+          className="rounded-2xl border p-5"
+          style={{ borderColor: `${eixo.color}55`, background: `${eixo.color}12` }}
+        >
+          <div className="flex items-center gap-2">
+            <span style={{ fontFamily: DISPLAY }} className="text-lg font-bold">
+              {eixo.label}
+            </span>
+            <span className="text-sm text-[#9a9ab4]">· {eixo.sub}</span>
+          </div>
+          <ul className="ml-4 mt-3 list-disc space-y-1.5 text-sm text-[#cfcfe0]">
+            {(dados?.itens ?? []).map((it, j) => (
+              <li key={j}>{it}</li>
+            ))}
+          </ul>
+          {dados?.saas && (
+            <div
+              className="mt-4 rounded-xl p-3 text-sm text-[#ECECF4]"
+              style={{ background: "rgba(255,255,255,.05)" }}
+            >
+              <b style={{ color: eixo.color }}>Como o micro SaaS resolve:</b> {dados.saas}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {nucleo.sintese && (
+        <div
+          className="mt-5 flex gap-2 rounded-xl p-4 text-sm text-[#ECECF4]"
+          style={{ background: "rgba(139,92,246,.1)" }}
+        >
+          <Lightbulb size={18} className="mt-0.5 shrink-0 text-[#c4b5fd]" />
+          <span>
+            <b>Construindo o micro SaaS sobre essa persona:</b> {nucleo.sintese}
+          </span>
+        </div>
       )}
     </div>
   );
