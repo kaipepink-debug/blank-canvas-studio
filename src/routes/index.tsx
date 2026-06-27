@@ -16,6 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
+import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Pesquise oportunidades de micro SaaS com o Agent SaaS Skill: dados demográficos, dores, personas e ideias de micro SaaS — com IA e dados da web.",
+          "Pesquise oportunidades de micro SaaS e faça estudos de persona com IA e dados da web.",
       },
     ],
     links: [
@@ -42,7 +43,9 @@ export const Route = createFileRoute("/")({
 const DISPLAY = '"Space Grotesk", system-ui, sans-serif';
 const BODY = '"DM Sans", system-ui, sans-serif';
 
-const NICHOS_PADRAO = "pet shop";
+type Modo = "nicho" | "persona";
+
+const NICHO_PADRAO = "pet shop";
 const CHIPS = [
   "pet shop",
   "estética e salão",
@@ -53,6 +56,8 @@ const CHIPS = [
   "imobiliária",
   "contabilidade",
 ];
+const EXEMPLO_PERSONA =
+  'Ex.: Quero criar um micro SaaS para alfabetização de crianças com Síndrome de Down. Quais problemas os pais dessas crianças vivem? Faça o estudo de persona dos pais.';
 
 function soma(n?: Analise["notas"]): number {
   if (!n) return 0;
@@ -96,13 +101,19 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
 function Index() {
   const [autenticado, setAutenticado] = useState(false);
   const [senha, setSenha] = useState("");
+  const [modo, setModo] = useState<Modo>("nicho");
 
-  const [input, setInput] = useState(NICHOS_PADRAO);
+  // Modo nicho
+  const [input, setInput] = useState(NICHO_PADRAO);
   const [results, setResults] = useState<Analise[] | null>(null);
+
+  // Modo persona
+  const [pInput, setPInput] = useState("");
+  const [personaResult, setPersonaResult] = useState<EstudoPersona | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
 
-  // Mantém o login após refresh (na mesma aba).
   useEffect(() => {
     const s = sessionStorage.getItem("ass_senha");
     if (s) {
@@ -117,11 +128,10 @@ function Index() {
     setAutenticado(true);
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onNicho(e: React.FormEvent) {
     e.preventDefault();
     const nicho = input.split(",")[0]?.trim();
     if (!nicho) return;
-
     setLoading(true);
     setResults(null);
     setStatus(`Pesquisando "${nicho}"…`);
@@ -139,8 +149,24 @@ function Index() {
     setLoading(false);
   }
 
-  function addChip(v: string) {
-    setInput(v);
+  async function onPersona(e: React.FormEvent) {
+    e.preventDefault();
+    const descricao = pInput.trim();
+    if (!descricao) return;
+    setLoading(true);
+    setPersonaResult(null);
+    setStatus("Pesquisando a persona…");
+    let r: EstudoPersona;
+    try {
+      r = await estudoPersona({ data: { descricao, senha } });
+    } catch (err: any) {
+      r = {
+        erro: true,
+        mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
+      };
+    }
+    setPersonaResult(r);
+    setLoading(false);
   }
 
   return (
@@ -161,7 +187,6 @@ function Index() {
           WebkitMaskImage: "radial-gradient(ellipse at 50% 0%, #000 35%, transparent 78%)",
         }}
       />
-      {/* Glows de fundo */}
       <div
         aria-hidden
         className="pointer-events-none fixed -left-32 -top-40 h-[520px] w-[520px] rounded-full opacity-50 blur-[120px]"
@@ -175,20 +200,59 @@ function Index() {
 
       {!autenticado ? (
         <LoginGate onOk={aoEntrar} />
-      ) : !results ? (
-        <SearchView
-          input={input}
-          setInput={setInput}
-          onSubmit={onSubmit}
-          addChip={addChip}
-          loading={loading}
-        />
       ) : (
-        <ResultsView results={results} onReset={() => setResults(null)} />
+        <div className="relative z-10 mx-auto w-full max-w-4xl">
+          <TopBar modo={modo} setModo={setModo} />
+          {modo === "nicho" ? (
+            !results ? (
+              <SearchView
+                input={input}
+                setInput={setInput}
+                onSubmit={onNicho}
+                addChip={(v) => setInput(v)}
+                loading={loading}
+              />
+            ) : (
+              <ResultsView results={results} onReset={() => setResults(null)} />
+            )
+          ) : !personaResult ? (
+            <PersonaView
+              input={pInput}
+              setInput={setPInput}
+              onSubmit={onPersona}
+              loading={loading}
+            />
+          ) : (
+            <PersonaResult dados={personaResult} onReset={() => setPersonaResult(null)} />
+          )}
+        </div>
       )}
 
       {loading && <Overlay status={status} />}
     </main>
+  );
+}
+
+/* ----------------------------------------------------------------- TopBar */
+function TopBar({ modo, setModo }: { modo: Modo; setModo: (m: Modo) => void }) {
+  const tab = (m: Modo, label: string, icon: React.ReactNode) => (
+    <button
+      onClick={() => setModo(m)}
+      className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm transition ${
+        modo === m ? "bg-[#8b5cf6] text-white" : "text-[#9a9ab4] hover:text-[#ECECF4]"
+      }`}
+    >
+      {icon} {label}
+    </button>
+  );
+  return (
+    <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+      <Brand subtitle={false} />
+      <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+        {tab("nicho", "Pesquisa de nichos", <Search size={15} />)}
+        {tab("persona", "Estudo de persona", <Users size={15} />)}
+      </div>
+    </div>
   );
 }
 
@@ -257,7 +321,11 @@ function LoginGate({ onOk }: { onOk: (senha: string) => void }) {
             boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
           }}
         >
-          {verificando ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} strokeWidth={2.4} />}
+          {verificando ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <ArrowRight size={18} strokeWidth={2.4} />
+          )}
           Entrar
         </button>
       </form>
@@ -265,7 +333,46 @@ function LoginGate({ onOk }: { onOk: (senha: string) => void }) {
   );
 }
 
-/* ---------------------------------------------------------------- Search */
+/* ------------------------------------------------------------- Hero/Form UI */
+function Hero({
+  eyebrow,
+  titulo,
+  destaque,
+  sub,
+}: {
+  eyebrow: string;
+  titulo: string;
+  destaque: string;
+  sub: string;
+}) {
+  return (
+    <div className="text-center">
+      <span className="mb-5 inline-block rounded-full border border-white/10 px-3.5 py-1.5 text-[13px] text-[#9a9ab4]">
+        {eyebrow}
+      </span>
+      <h1
+        style={{ fontFamily: DISPLAY, letterSpacing: "-0.03em" }}
+        className="mx-auto max-w-2xl text-[clamp(28px,5vw,44px)] font-bold leading-[1.08]"
+      >
+        {titulo}{" "}
+        <span
+          className="bg-clip-text text-transparent"
+          style={{ backgroundImage: "linear-gradient(120deg,#a5b4fc,#c4b5fd 55%,#f0abfc)" }}
+        >
+          {destaque}
+        </span>
+      </h1>
+      <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed text-[#9a9ab4]">{sub}</p>
+    </div>
+  );
+}
+
+const CARD_STYLE: React.CSSProperties = {
+  background: "rgba(255,255,255,.045)",
+  boxShadow: "0 24px 60px -20px rgba(0,0,0,.6)",
+};
+
+/* ---------------------------------------------------------------- Nicho */
 function SearchView({
   input,
   setInput,
@@ -280,42 +387,17 @@ function SearchView({
   loading: boolean;
 }) {
   return (
-    <div className="relative z-10 mx-auto w-full max-w-3xl">
-      <header className="mb-12">
-        <Brand />
-      </header>
-
-      <div className="text-center">
-        <span className="mb-5 inline-block rounded-full border border-white/10 px-3.5 py-1.5 text-[13px] text-[#9a9ab4]">
-          Pesquisa de oportunidades com IA + dados da web
-        </span>
-        <h1
-          style={{ fontFamily: DISPLAY, letterSpacing: "-0.03em" }}
-          className="mx-auto max-w-2xl text-[clamp(30px,5vw,46px)] font-bold leading-[1.08]"
-        >
-          Descubra o seu próximo{" "}
-          <span
-            className="bg-clip-text text-transparent"
-            style={{
-              backgroundImage: "linear-gradient(120deg,#a5b4fc,#c4b5fd 55%,#f0abfc)",
-            }}
-          >
-            micro SaaS
-          </span>
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-[17px] leading-relaxed text-[#9a9ab4]">
-          Informe um nicho. A IA pesquisa o mercado e devolve dados
-          demográficos, dores, personas e ideias de micro SaaS — num relatório só.
-        </p>
-      </div>
-
+    <div className="mx-auto max-w-2xl">
+      <Hero
+        eyebrow="Pesquisa de oportunidades com IA + dados da web"
+        titulo="Descubra o seu próximo"
+        destaque="micro SaaS"
+        sub="Informe um nicho. A IA pesquisa o mercado e devolve dados demográficos, dores, personas e ideias de micro SaaS — num relatório só."
+      />
       <form
         onSubmit={onSubmit}
         className="mt-9 rounded-[22px] border border-white/10 p-5 backdrop-blur-xl"
-        style={{
-          background: "rgba(255,255,255,.045)",
-          boxShadow: "0 24px 60px -20px rgba(0,0,0,.6)",
-        }}
+        style={CARD_STYLE}
       >
         <div className="relative">
           <Search size={18} className="absolute left-4 top-3.5 text-[#9a9ab4]" />
@@ -326,7 +408,6 @@ function SearchView({
             className="w-full rounded-2xl border border-white/10 bg-black/25 py-3.5 pl-12 pr-4 text-base text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
           />
         </div>
-
         <div className="mt-3.5 flex flex-wrap gap-2">
           {CHIPS.map((c) => (
             <button
@@ -339,7 +420,6 @@ function SearchView({
             </button>
           ))}
         </div>
-
         <button
           type="submit"
           disabled={loading}
@@ -395,6 +475,162 @@ function Feature({
   );
 }
 
+/* --------------------------------------------------------------- Persona */
+function PersonaView({
+  input,
+  setInput,
+  onSubmit,
+  loading,
+}: {
+  input: string;
+  setInput: (v: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Hero
+        eyebrow="Estudo de persona com IA + dados da web"
+        titulo="Entenda quem é o seu"
+        destaque="público-alvo"
+        sub="Descreva o nicho/produto e o que quer descobrir. A IA pesquisa e responde as 12 áreas da persona: quem é, dores, medos, desejos, objeções e mais."
+      />
+      <form
+        onSubmit={onSubmit}
+        className="mt-9 rounded-[22px] border border-white/10 p-5 backdrop-blur-xl"
+        style={CARD_STYLE}
+      >
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={EXEMPLO_PERSONA}
+          className="min-h-[140px] w-full resize-y rounded-2xl border border-white/10 bg-black/25 p-4 text-base leading-relaxed text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl py-4 text-base font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+          style={{
+            fontFamily: BODY,
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
+          }}
+        >
+          Fazer estudo de persona
+          <ArrowRight size={18} strokeWidth={2.4} />
+        </button>
+        <p className="mt-3.5 text-center text-[13px] text-[#9a9ab4]">
+          Pesquisa em tempo real na web · leva ~1–2 min
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function PersonaResult({
+  dados,
+  onReset,
+}: {
+  dados: EstudoPersona;
+  onReset: () => void;
+}) {
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-end">
+        <button
+          onClick={onReset}
+          className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
+        >
+          <RotateCcw size={15} /> Novo estudo
+        </button>
+      </div>
+
+      {dados.erro ? (
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+          <h3 style={{ fontFamily: DISPLAY }} className="text-xl font-bold">
+            Não foi possível concluir o estudo.
+          </h3>
+          {dados.mensagem && (
+            <p className="mt-2 break-words rounded-lg bg-red-500/10 p-3 text-xs text-red-200">
+              {dados.mensagem}
+            </p>
+          )}
+        </section>
+      ) : (
+        <>
+          {dados.titulo && (
+            <h2
+              style={{ fontFamily: DISPLAY, letterSpacing: "-0.02em" }}
+              className="text-2xl font-bold"
+            >
+              {dados.titulo}
+            </h2>
+          )}
+          {dados.persona_nome && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1.5 text-sm text-amber-200">
+              <UserRound size={15} /> {dados.persona_nome}
+            </div>
+          )}
+          {dados.resumo && (
+            <p className="mt-4 text-[15px] leading-relaxed text-[#cfcfe0]">{dados.resumo}</p>
+          )}
+
+          <div className="mt-6 space-y-4">
+            {(dados.secoes ?? []).map((s, i) => (
+              <section
+                key={i}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"
+              >
+                <h3
+                  style={{ fontFamily: DISPLAY }}
+                  className="mb-2 text-[17px] font-semibold text-[#ECECF4]"
+                >
+                  {s.titulo}
+                </h3>
+                {s.resposta && (
+                  <p className="text-sm leading-relaxed text-[#cfcfe0]">{s.resposta}</p>
+                )}
+                {s.pontos?.length ? (
+                  <ul className="ml-4 mt-2 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                    {s.pontos.map((p, j) => (
+                      <li key={j}>{p}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ))}
+          </div>
+
+          {dados.conclusao && (
+            <div className="mt-6 flex gap-2 rounded-xl bg-indigo-500/10 p-4 text-sm text-[#ECECF4]">
+              <CircleCheck size={18} className="mt-0.5 shrink-0 text-indigo-300" />
+              <span>
+                <b>O que isso significa pro seu produto:</b> {dados.conclusao}
+              </span>
+            </div>
+          )}
+
+          {dados.fontes?.length ? (
+            <div className="mt-4 flex flex-wrap gap-3 text-xs text-[#9a9ab4]">
+              {dados.fontes.map((f, i) => (
+                <a
+                  key={i}
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 hover:text-[#c4b5fd]"
+                >
+                  <ExternalLink size={12} /> {f.titulo}
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- Results */
 function ResultsView({
   results,
@@ -405,9 +641,8 @@ function ResultsView({
 }) {
   const validos = results.filter((r) => !r.erro);
   return (
-    <div className="relative z-10 mx-auto w-full max-w-4xl">
-      <div className="mb-8 flex items-center justify-between">
-        <Brand subtitle={false} />
+    <div>
+      <div className="mb-6 flex items-center justify-end">
         <button
           onClick={onReset}
           className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
@@ -457,7 +692,7 @@ function ResultsView({
         </>
       )}
 
-      <div className="mt-8 space-y-6">
+      <div className="space-y-6">
         {results.map((r) => (
           <NichoCard key={r.nicho} a={r} />
         ))}
@@ -748,11 +983,11 @@ function Overlay({ status }: { status: string }) {
       <div className="max-w-sm px-6 text-center">
         <Loader2 size={48} className="mx-auto mb-5 animate-spin text-[#8b5cf6]" />
         <h2 style={{ fontFamily: DISPLAY }} className="mb-2 text-xl font-semibold">
-          Pesquisando o mercado…
+          Pesquisando…
         </h2>
         <p className="text-sm text-[#9a9ab4]">{status}</p>
         <p className="mt-2 text-xs text-[#6b6b86]">
-          Não feche a aba. Cada nicho leva ~1–2 minutos.
+          Não feche a aba. Leva ~1–2 minutos.
         </p>
       </div>
     </div>

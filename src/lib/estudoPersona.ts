@@ -1,0 +1,158 @@
+import { createServerFn } from "@tanstack/react-start";
+import { senhaValida } from "./analisarNicho";
+
+export type SecaoPersona = {
+  titulo: string;
+  resposta: string;
+  pontos: string[];
+};
+export type Fonte = { titulo: string; url: string };
+export type EstudoPersona = {
+  titulo?: string;
+  persona_nome?: string;
+  resumo?: string;
+  secoes?: SecaoPersona[];
+  conclusao?: string;
+  fontes?: Fonte[];
+  erro?: boolean;
+  mensagem?: string;
+};
+
+const MODELO = "claude-opus-4-8";
+
+const SYSTEM = `Você é um pesquisador de personas e UX, especialista no mercado \
+brasileiro. O usuário vai descrever, em linguagem natural, um nicho/produto e o \
+que quer descobrir sobre a persona (o público-alvo). Faça uma pesquisa PROFUNDA \
+e use a busca na web para fundamentar com dados reais (estudos, associações, \
+relatos em fóruns/grupos, dados demográficos). Responda de forma DIDÁTICA e \
+empática, como uma conversa — explicando, não apenas listando.
+
+Cubra OBRIGATORIAMENTE estas 12 seções, NESTA ordem, cada uma respondendo às \
+perguntas-chave do tema:
+1. Quem é (demografia & contexto)
+2. Rotina & comportamento
+3. Dores & problemas
+4. Medos
+5. Desejos & objetivos
+6. Necessidades (job to be done)
+7. Objeções & barreiras
+8. Gatilhos & motivações
+9. Onde está & quem influencia (canais)
+10. Como resolve hoje (alternativas atuais)
+11. Dinheiro & decisão
+12. Emoções & identidade
+
+Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown):
+{
+  "titulo": "título do estudo (a persona em foco)",
+  "persona_nome": "nome fictício + 1 linha (ex: 'Ana, 38, mãe do Theo, que tem Síndrome de Down')",
+  "resumo": "2-4 frases introdutórias e empáticas sobre quem é essa persona",
+  "secoes": [
+    {
+      "titulo": "Quem é (demografia & contexto)",
+      "resposta": "parágrafo didático respondendo ao tema",
+      "pontos": ["ponto-chave", "..."]
+    }
+  ],
+  "conclusao": "o que isso significa para o produto/SaaS: como atender melhor essa persona",
+  "fontes": [{"titulo":"string","url":"string"}]
+}
+
+Regras: traga as 12 seções na ordem indicada; em cada uma, de 3 a 6 pontos. Seja \
+específico, humano e fundamentado em dados/relatos reais.`;
+
+export const estudoPersona = createServerFn({ method: "POST" })
+  .inputValidator((p: { descricao: string; senha: string }) => p)
+  .handler(async ({ data }): Promise<EstudoPersona> => {
+    const { descricao, senha } = data;
+    const falha = (mensagem: string): EstudoPersona => ({ erro: true, mensagem });
+
+    if (!senhaValida(senha)) return falha("Senha incorreta.");
+
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) {
+      return falha(
+        "ANTHROPIC_API_KEY não encontrada no servidor. Adicione-a nos Secrets do projeto na Lovable.",
+      );
+    }
+
+    const messages = [
+      {
+        role: "user",
+        content: `Faça o estudo de persona para o seguinte pedido. Pesquise na web antes de responder.\n\n${descricao}`,
+      },
+    ];
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: MODELO,
+          max_tokens: 9000,
+          stream: true,
+          thinking: { type: "adaptive" },
+          system: SYSTEM,
+          tools: [{ type: "web_search_20260209", name: "web_search" }],
+          messages,
+        }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        const corpo = await resp.text().catch(() => "");
+        return falha(`API retornou ${resp.status}: ${corpo.slice(0, 300)}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let texto = "";
+      let stopReason = "";
+      let apiErro = "";
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let ev: any;
+          try {
+            ev = JSON.parse(payload);
+          } catch {
+            continue;
+          }
+          if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
+            texto += ev.delta.text;
+          } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
+            stopReason = ev.delta.stop_reason;
+          } else if (ev.type === "error") {
+            apiErro = ev.error?.message ?? "erro no stream";
+          }
+        }
+      }
+
+      if (apiErro) return falha(`Erro da API: ${apiErro}`);
+      if (stopReason === "refusal") {
+        return falha("A IA recusou este pedido. Tente reformular.");
+      }
+
+      const ini = texto.indexOf("{");
+      const fim = texto.lastIndexOf("}");
+      if (ini === -1 || fim === -1) {
+        return falha(`Resposta incompleta — tente de novo. Início: ${texto.slice(0, 150)}`);
+      }
+      return JSON.parse(texto.slice(ini, fim + 1)) as EstudoPersona;
+    } catch (e: any) {
+      return falha(`Falha no servidor: ${e?.message ?? String(e)}`);
+    }
+  });
