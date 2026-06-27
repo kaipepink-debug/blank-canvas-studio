@@ -125,7 +125,7 @@ use números sempre que possível.`;
 // Senhas de acesso. Você pode adicionar mais via secret APP_PASSWORD na Lovable
 // (separadas por vírgula).
 export function senhaValida(s: string): boolean {
-  const fixas = ["Mandarrari", "Pedro2606"];
+  const fixas = ["Mandarrari", "Pedro2606", "Fabio2706"];
   const extra = (process.env.APP_PASSWORD ?? "")
     .split(",")
     .map((x) => x.trim())
