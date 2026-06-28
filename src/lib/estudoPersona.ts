@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { senhaValida } from "./analisarNicho";
+import { senhaValida, extrairJson } from "./analisarNicho";
 
 export type SecaoPersona = {
   titulo: string;
@@ -72,9 +72,10 @@ Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown):
   "fontes": [{"titulo":"string","url":"string"}]
 }
 
-Regras: traga as 12 seções na ordem indicada; em cada uma, de 3 a 6 pontos. Em \
-"nucleo", destaque os pontos MAIS AGUDOS (3-4 por eixo) e ligue cada eixo a como \
-o micro SaaS resolve. Seja específico, humano e fundamentado em dados reais.`;
+Regras: traga as 12 seções na ordem indicada; em cada uma, "resposta" com 2-3 \
+frases e de 3 a 4 pontos CURTOS. Em "nucleo", 3 itens por eixo, ligando cada um a \
+como o micro SaaS resolve. Seja conciso para a resposta caber inteira; humano e \
+fundamentado em dados reais.`;
 
 export const estudoPersona = createServerFn({ method: "POST" })
   .inputValidator((p: { descricao: string; senha: string }) => p)
@@ -108,7 +109,7 @@ export const estudoPersona = createServerFn({ method: "POST" })
         },
         body: JSON.stringify({
           model: MODELO,
-          max_tokens: 9000,
+          max_tokens: 14000,
           stream: true,
           thinking: { type: "adaptive" },
           system: SYSTEM,
@@ -161,12 +162,15 @@ export const estudoPersona = createServerFn({ method: "POST" })
         return falha("A IA recusou este pedido. Tente reformular.");
       }
 
-      const ini = texto.indexOf("{");
-      const fim = texto.lastIndexOf("}");
-      if (ini === -1 || fim === -1) {
+      const jsonStr = extrairJson(texto);
+      if (!jsonStr) {
         return falha(`Resposta incompleta — tente de novo. Início: ${texto.slice(0, 150)}`);
       }
-      return JSON.parse(texto.slice(ini, fim + 1)) as EstudoPersona;
+      try {
+        return JSON.parse(jsonStr) as EstudoPersona;
+      } catch {
+        return falha("A resposta veio longa demais e ficou incompleta. Tente um pedido mais específico.");
+      }
     } catch (e: any) {
       return falha(`Falha no servidor: ${e?.message ?? String(e)}`);
     }

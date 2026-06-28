@@ -61,6 +61,39 @@ export type Analise = {
 
 const MODELO = "claude-opus-4-8";
 
+// Extrai um objeto JSON do texto. Se a resposta veio truncada (cortada no meio),
+// fecha as aspas/colchetes/chaves que ficaram abertos (best-effort).
+export function extrairJson(texto: string): string | null {
+  const start = texto.indexOf("{");
+  if (start === -1) return null;
+  let inStr = false;
+  let esc = false;
+  const stack: string[] = [];
+  for (let i = start; i < texto.length; i++) {
+    const ch = texto[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") {
+      stack.pop();
+      if (stack.length === 0) return texto.slice(start, i + 1);
+    }
+  }
+  // Truncado: fecha o que ficou aberto.
+  let json = texto.slice(start);
+  if (inStr) json += '"';
+  json = json.replace(/[\s,]+$/, "");
+  for (let i = stack.length - 1; i >= 0; i--) {
+    json += stack[i] === "{" ? "}" : "]";
+  }
+  return json;
+}
+
 const SYSTEM = `Você é analista sênior de oportunidades de Micro SaaS no mercado \
 brasileiro, ajudando um empreendedor NÃO-TÉCNICO que vende B2B para pequenas \
 empresas e busca escala. Faça uma análise PROFUNDA e detalhada. Use a busca na \
@@ -228,12 +261,16 @@ export const analisarNicho = createServerFn({ method: "POST" })
         return falha("A IA recusou a análise deste nicho.");
       }
 
-      const ini = texto.indexOf("{");
-      const fim = texto.lastIndexOf("}");
-      if (ini === -1 || fim === -1) {
+      const jsonStr = extrairJson(texto);
+      if (!jsonStr) {
         return falha(`Resposta incompleta — tente de novo. Início: ${texto.slice(0, 150)}`);
       }
-      const dados = JSON.parse(texto.slice(ini, fim + 1)) as Analise;
+      let dados: Analise;
+      try {
+        dados = JSON.parse(jsonStr) as Analise;
+      } catch {
+        return falha("A resposta veio longa demais e ficou incompleta. Tente de novo.");
+      }
       if (!dados.nicho) dados.nicho = nicho;
       return dados;
     } catch (e: any) {
