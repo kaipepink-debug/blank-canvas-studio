@@ -26,7 +26,8 @@ export type EstudoPersona = {
   mensagem?: string;
 };
 
-const MODELO = "claude-opus-4-8";
+// Sonnet 4.6: ótimo custo-benefício. Troque para "claude-opus-4-8" para o máximo.
+const MODELO = "claude-sonnet-4-6";
 
 const SYSTEM = `Você é um pesquisador de personas e UX, especialista no mercado \
 brasileiro. O usuário vai descrever, em linguagem natural, um nicho/produto e o \
@@ -112,8 +113,9 @@ export const estudoPersona = createServerFn({ method: "POST" })
           max_tokens: 14000,
           stream: true,
           thinking: { type: "adaptive" },
+          output_config: { effort: "medium" },
           system: SYSTEM,
-          tools: [{ type: "web_search_20260209", name: "web_search" }],
+          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
           messages,
         }),
       });

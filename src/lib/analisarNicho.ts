@@ -59,7 +59,9 @@ export type Analise = {
   mensagem?: string;
 };
 
-const MODELO = "claude-opus-4-8";
+// Sonnet 4.6: ótimo custo-benefício para pesquisa + saída estruturada.
+// Troque para "claude-opus-4-8" se quiser o máximo de profundidade (mais caro).
+const MODELO = "claude-sonnet-4-6";
 
 // Extrai um objeto JSON do texto. Se a resposta veio truncada (cortada no meio),
 // fecha as aspas/colchetes/chaves que ficaram abertos (best-effort).
@@ -211,8 +213,9 @@ export const analisarNicho = createServerFn({ method: "POST" })
           max_tokens: 9000,
           stream: true,
           thinking: { type: "adaptive" },
+          output_config: { effort: "medium" },
           system: SYSTEM,
-          tools: [{ type: "web_search_20260209", name: "web_search" }],
+          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
           messages,
         }),
       });
