@@ -15,6 +15,7 @@ import {
   Telescope,
   Lock,
   Boxes,
+  ShieldCheck,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
@@ -574,6 +575,15 @@ function PersonaResult({
           )}
           {dados.resumo && (
             <p className="mt-4 text-[15px] leading-relaxed text-[#cfcfe0]">{dados.resumo}</p>
+          )}
+
+          {dados.confiabilidade && (
+            <div className="mt-4 flex gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-[13px] leading-relaxed text-amber-100/90">
+              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-amber-300" />
+              <span>
+                <b>Confiabilidade dos dados:</b> {dados.confiabilidade}
+              </span>
+            </div>
           )}
 
           <div className="mt-6 space-y-4">

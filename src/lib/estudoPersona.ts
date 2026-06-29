@@ -18,6 +18,7 @@ export type EstudoPersona = {
   titulo?: string;
   persona_nome?: string;
   resumo?: string;
+  confiabilidade?: string;
   secoes?: SecaoPersona[];
   nucleo?: Nucleo;
   conclusao?: string;
@@ -31,10 +32,23 @@ const MODELO = "claude-sonnet-4-6";
 
 const SYSTEM = `Você é um pesquisador de personas e UX, especialista no mercado \
 brasileiro. O usuário vai descrever, em linguagem natural, um nicho/produto e o \
-que quer descobrir sobre a persona (o público-alvo). Faça uma pesquisa PROFUNDA \
-e use a busca na web para fundamentar com dados reais (estudos, associações, \
-relatos em fóruns/grupos, dados demográficos). Responda de forma DIDÁTICA e \
-empática, como uma conversa — explicando, não apenas listando.
+que quer descobrir sobre a persona (o público-alvo). Leia a descrição dele com \
+ATENÇÃO e ancore TODA a pesquisa no que ele escreveu — produto, região, faixa \
+etária/renda, plataforma e o que ele quer descobrir. Se algo for ambíguo, adote \
+a interpretação mais provável e siga (não faça perguntas de volta).
+
+Faça uma pesquisa PROFUNDA e use a busca na web de forma agressiva para \
+fundamentar com dados reais. Para NÚMEROS e dados de mercado, priorize fontes \
+oficiais e confiáveis do Brasil (IBGE, Sebrae, DataSebrae, governo, associações \
+do setor, relatórios de consultorias, Reclame Aqui). Para o lado qualitativo \
+(dores, desejos, linguagem real), use também fóruns, grupos, Reddit, reviews e \
+relatos. Responda de forma DIDÁTICA e empática, como uma conversa — explicando, \
+não apenas listando.
+
+REGRA DE HONESTIDADE: todo número ou afirmação factual deve indicar a origem — \
+escreva "(fonte: <nome>)" quando vier de uma busca, ou "(estimativa)" quando for \
+sua inferência. NUNCA invente estatística com aparência de dado oficial. É melhor \
+dizer "não há dado público preciso, estima-se ~X" do que cravar um número falso.
 
 Cubra OBRIGATORIAMENTE estas 12 seções, NESTA ordem, cada uma respondendo às \
 perguntas-chave do tema:
@@ -56,6 +70,7 @@ Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown):
   "titulo": "título do estudo (a persona em foco)",
   "persona_nome": "nome fictício + 1 linha (ex: 'Ana, 38, mãe do Theo, que tem Síndrome de Down')",
   "resumo": "2-4 frases introdutórias e empáticas sobre quem é essa persona",
+  "confiabilidade": "1-2 frases: o quanto este estudo se apoia em dados reais encontrados vs. estimativas, e onde os dados são mais frágeis",
   "secoes": [
     {
       "titulo": "Quem é (demografia & contexto)",
@@ -74,9 +89,9 @@ Ao final responda APENAS com UM objeto JSON válido (sem texto/crase/markdown):
 }
 
 Regras: traga as 12 seções na ordem indicada; em cada uma, "resposta" com 2-3 \
-frases e de 3 a 4 pontos CURTOS. Em "nucleo", 3 itens por eixo, ligando cada um a \
-como o micro SaaS resolve. Seja conciso para a resposta caber inteira; humano e \
-fundamentado em dados reais.`;
+frases e de 3 a 4 pontos CURTOS, com as marcações de fonte/estimativa onde houver \
+dado. Em "nucleo", 3 itens por eixo, ligando cada um a como o micro SaaS resolve. \
+Seja conciso para a resposta caber inteira; humano e fundamentado em dados reais.`;
 
 export const estudoPersona = createServerFn({ method: "POST" })
   .inputValidator((p: { descricao: string; senha: string }) => p)
@@ -115,7 +130,7 @@ export const estudoPersona = createServerFn({ method: "POST" })
           thinking: { type: "adaptive" },
           output_config: { effort: "medium" },
           system: SYSTEM,
-          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 8 }],
           messages,
         }),
       });
