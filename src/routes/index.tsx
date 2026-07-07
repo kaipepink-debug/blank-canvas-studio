@@ -16,9 +16,15 @@ import {
   Lock,
   Boxes,
   ShieldCheck,
+  Sparkles,
+  Zap,
+  Gauge,
+  Megaphone,
+  Quote,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
+import { estudoOferta, type Oferta } from "@/lib/estudoOferta";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,7 +51,7 @@ export const Route = createFileRoute("/")({
 const DISPLAY = '"Space Grotesk", system-ui, sans-serif';
 const BODY = '"DM Sans", system-ui, sans-serif';
 
-type Modo = "nicho" | "persona";
+type Modo = "nicho" | "persona" | "oferta";
 
 const NICHO_PADRAO = "pet shop";
 const CHIPS = [
@@ -60,6 +66,58 @@ const CHIPS = [
 ];
 const EXEMPLO_PERSONA =
   'Ex.: Quero criar um micro SaaS para alfabetização de crianças com Síndrome de Down. Quais problemas os pais dessas crianças vivem? Faça o estudo de persona dos pais.';
+
+type OfertaForm = {
+  produto: string;
+  publico: string;
+  resultado: string;
+  consciencia: string;
+  canal: string;
+  ticket: string;
+  beneficio: string;
+  porque_agora: string;
+  promessa: string;
+  mecanismo: string;
+  tempo: string;
+  dor: string;
+  diferencial: string;
+  prova: string;
+  oferta_stack: string;
+  garantia: string;
+};
+const OFERTA_FORM_INICIAL: OfertaForm = {
+  produto: "",
+  publico: "",
+  resultado: "",
+  consciencia: "",
+  canal: "",
+  ticket: "",
+  beneficio: "",
+  porque_agora: "",
+  promessa: "",
+  mecanismo: "",
+  tempo: "",
+  dor: "",
+  diferencial: "",
+  prova: "",
+  oferta_stack: "",
+  garantia: "",
+};
+const CONSCIENCIA_OPCOES = [
+  "Não sabe que tem o problema",
+  "Sabe do problema, não da solução",
+  "Conhece soluções, não a minha",
+  "Já me conhece",
+];
+const CANAL_OPCOES = [
+  "Anúncio",
+  "Landing page",
+  "E-mail",
+  "WhatsApp",
+  "VSL / vídeo",
+  "Página de vendas",
+];
+const TICKET_OPCOES = ["Baixo (até R$97)", "Médio (R$97–997)", "Alto (R$997+)"];
 
 function soma(n?: Analise["notas"]): number {
   if (!n) return 0;
@@ -112,6 +170,10 @@ function Index() {
   // Modo persona
   const [pInput, setPInput] = useState("");
   const [personaResult, setPersonaResult] = useState<EstudoPersona | null>(null);
+
+  // Modo oferta
+  const [oForm, setOForm] = useState<OfertaForm>(OFERTA_FORM_INICIAL);
+  const [ofertaResult, setOfertaResult] = useState<Oferta | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -171,6 +233,25 @@ function Index() {
     setLoading(false);
   }
 
+  async function onOferta(e: React.FormEvent) {
+    e.preventDefault();
+    if (!oForm.produto.trim() || !oForm.publico.trim() || !oForm.resultado.trim()) return;
+    setLoading(true);
+    setOfertaResult(null);
+    setStatus("Montando sua oferta…");
+    let r: Oferta;
+    try {
+      r = await estudoOferta({ data: { ...oForm, senha } });
+    } catch (err: any) {
+      r = {
+        erro: true,
+        mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
+      };
+    }
+    setOfertaResult(r);
+    setLoading(false);
+  }
+
   return (
     <main
       className="relative min-h-screen overflow-x-hidden px-5 py-10 text-[#ECECF4]"
@@ -217,15 +298,26 @@ function Index() {
             ) : (
               <ResultsView results={results} onReset={() => setResults(null)} />
             )
-          ) : !personaResult ? (
-            <PersonaView
-              input={pInput}
-              setInput={setPInput}
-              onSubmit={onPersona}
+          ) : modo === "persona" ? (
+            !personaResult ? (
+              <PersonaView
+                input={pInput}
+                setInput={setPInput}
+                onSubmit={onPersona}
+                loading={loading}
+              />
+            ) : (
+              <PersonaResult dados={personaResult} onReset={() => setPersonaResult(null)} />
+            )
+          ) : !ofertaResult ? (
+            <OfertaView
+              form={oForm}
+              setForm={setOForm}
+              onSubmit={onOferta}
               loading={loading}
             />
           ) : (
-            <PersonaResult dados={personaResult} onReset={() => setPersonaResult(null)} />
+            <OfertaResult dados={ofertaResult} onReset={() => setOfertaResult(null)} />
           )}
         </div>
       )}
@@ -253,6 +345,7 @@ function TopBar({ modo, setModo }: { modo: Modo; setModo: (m: Modo) => void }) {
       <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
         {tab("nicho", "Pesquisa de nichos", <Search size={15} />)}
         {tab("persona", "Estudo de persona", <Users size={15} />)}
+        {tab("oferta", "Gerador de oferta", <Sparkles size={15} />)}
       </div>
     </div>
   );
@@ -639,6 +732,523 @@ function PersonaResult({
             </div>
           ) : null}
         </>
+      )}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- Oferta */
+const INPUT_CLS =
+  "w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-[15px] text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40";
+
+function Campo({
+  label,
+  hint,
+  value,
+  onChange,
+  placeholder,
+  textarea,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  textarea?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#cfcfe0]">
+        {label}
+        {hint && <span className="ml-1 text-[12px] font-normal text-[#9a9ab4]">· {hint}</span>}
+      </span>
+      {textarea ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`${INPUT_CLS} min-h-[76px] resize-y`}
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={INPUT_CLS}
+        />
+      )}
+    </label>
+  );
+}
+
+function ChipSelect({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <span className="mb-2 block text-sm font-medium text-[#cfcfe0]">{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            type="button"
+            key={o}
+            onClick={() => onChange(value === o ? "" : o)}
+            className={`cursor-pointer rounded-full border px-3 py-1.5 text-[13px] transition ${
+              value === o
+                ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-white"
+                : "border-white/10 bg-white/[0.03] text-[#9a9ab4] hover:text-[#ECECF4]"
+            }`}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OfertaView({
+  form,
+  setForm,
+  onSubmit,
+  loading,
+}: {
+  form: OfertaForm;
+  setForm: (f: OfertaForm) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+}) {
+  const [mais, setMais] = useState(false);
+  const set = (k: keyof OfertaForm) => (v: string) => setForm({ ...form, [k]: v });
+  const pronto =
+    form.produto.trim() !== "" && form.publico.trim() !== "" && form.resultado.trim() !== "";
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Hero
+        eyebrow="Construtor de oferta com IA"
+        titulo="Monte sua"
+        destaque="proposta única de vendas"
+        sub="Responda o essencial e a IA monta a oferta completa: promessa em 3 níveis, mecanismo único, provas, quebra de objeções e CTA — pronta pro seu canal."
+      />
+      <form
+        onSubmit={onSubmit}
+        className="mt-9 space-y-5 rounded-[22px] border border-white/10 p-5 backdrop-blur-xl"
+        style={CARD_STYLE}
+      >
+        <div className="space-y-4">
+          <Campo
+            label="O que você vende?"
+            value={form.produto}
+            onChange={set("produto")}
+            placeholder="Ex.: sistema de captação de pacientes para clínicas"
+          />
+          <Campo
+            label="Para quem, exatamente?"
+            hint="público + localização"
+            value={form.publico}
+            onChange={set("publico")}
+            placeholder="Ex.: pequenas clínicas médicas em Guarulhos"
+          />
+          <Campo
+            label="Qual resultado concreto você entrega?"
+            value={form.resultado}
+            onChange={set("resultado")}
+            placeholder="Ex.: agenda lotada de novos pacientes"
+          />
+        </div>
+
+        <ChipSelect
+          label="Nível de consciência do público"
+          options={CONSCIENCIA_OPCOES}
+          value={form.consciencia}
+          onChange={set("consciencia")}
+        />
+        <ChipSelect
+          label="Onde a oferta vai ser usada?"
+          options={CANAL_OPCOES}
+          value={form.canal}
+          onChange={set("canal")}
+        />
+        <ChipSelect
+          label="Faixa de preço (ticket)"
+          options={TICKET_OPCOES}
+          value={form.ticket}
+          onChange={set("ticket")}
+        />
+
+        <button
+          type="button"
+          onClick={() => setMais(!mais)}
+          className="cursor-pointer text-sm text-[#c4b5fd] hover:underline"
+        >
+          {mais
+            ? "− Ocultar detalhes"
+            : "+ Adicionar detalhes (opcional — deixa a oferta mais afiada)"}
+        </button>
+
+        {mais && (
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <Campo
+              label="Principal benefício sentido"
+              hint="o 'e daí?' do resultado"
+              value={form.beneficio}
+              onChange={set("beneficio")}
+              placeholder="Ex.: para de ter medo do fim do mês"
+            />
+            <Campo
+              label="Por que ele não pode deixar de comprar?"
+              value={form.porque_agora}
+              onChange={set("porque_agora")}
+              placeholder="Ex.: cada semana parada é paciente indo pra concorrência"
+            />
+            <Campo
+              label="Promessa que já tem em mente"
+              hint="a IA cria se vazio"
+              value={form.promessa}
+              onChange={set("promessa")}
+            />
+            <Campo
+              label="Mecanismo único / nome do método"
+              hint="a IA sugere se vazio"
+              value={form.mecanismo}
+              onChange={set("mecanismo")}
+            />
+            <Campo
+              label="Tempo de entrega da solução"
+              value={form.tempo}
+              onChange={set("tempo")}
+              placeholder="Ex.: em 20 dias"
+            />
+            <Campo
+              label="Maior dor/objeção do cliente"
+              value={form.dor}
+              onChange={set("dor")}
+              textarea
+            />
+            <Campo
+              label="O que o concorrente NÃO entrega"
+              value={form.diferencial}
+              onChange={set("diferencial")}
+              textarea
+            />
+            <Campo
+              label="Provas que você já tem"
+              hint="números, casos, depoimentos"
+              value={form.prova}
+              onChange={set("prova")}
+              textarea
+            />
+            <Campo
+              label="O que o cliente recebe (o pacote)"
+              value={form.oferta_stack}
+              onChange={set("oferta_stack")}
+              textarea
+            />
+            <Campo
+              label="Garantia disponível"
+              value={form.garantia}
+              onChange={set("garantia")}
+            />
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || !pronto}
+          className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl py-4 text-base font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            fontFamily: BODY,
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
+          }}
+        >
+          Gerar minha oferta
+          <ArrowRight size={18} strokeWidth={2.4} />
+        </button>
+        <p className="text-center text-[13px] text-[#9a9ab4]">
+          Gera em ~20–40s · sem tráfego pago
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function BarraScore({ label, valor }: { label: string; valor: number }) {
+  const pct = Math.max(0, Math.min(100, (valor / 10) * 100));
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[12px] text-[#9a9ab4]">
+        <span>{label}</span>
+        <span className="text-[#ECECF4]">{valor}/10</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Bloco({
+  icon,
+  titulo,
+  children,
+}: {
+  icon: React.ReactNode;
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <h3
+        style={{ fontFamily: DISPLAY }}
+        className="mb-3 flex items-center gap-2 text-[16px] font-semibold text-[#ECECF4]"
+      >
+        {icon} {titulo}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }) {
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-end">
+        <button
+          onClick={onReset}
+          className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
+        >
+          <RotateCcw size={15} /> Nova oferta
+        </button>
+      </div>
+
+      {dados.erro ? (
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+          <h3 style={{ fontFamily: DISPLAY }} className="text-xl font-bold">
+            Não foi possível montar a oferta.
+          </h3>
+          {dados.mensagem && (
+            <p className="mt-2 break-words rounded-lg bg-red-500/10 p-3 text-xs text-red-200">
+              {dados.mensagem}
+            </p>
+          )}
+        </section>
+      ) : (
+        <div className="space-y-4">
+          {dados.score && (
+            <section className="rounded-2xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/[0.07] p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3
+                  style={{ fontFamily: DISPLAY }}
+                  className="flex items-center gap-2 text-[16px] font-semibold"
+                >
+                  <Gauge size={18} className="text-[#c4b5fd]" /> Força da oferta
+                </h3>
+                <div className="text-2xl font-bold text-[#c4b5fd]">
+                  {dados.score.total}
+                  <span className="text-sm text-[#9a9ab4]">/10</span>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BarraScore label="Promessa" valor={dados.score.promessa} />
+                <BarraScore label="Mecanismo" valor={dados.score.mecanismo} />
+                <BarraScore label="Prova" valor={dados.score.prova} />
+                <BarraScore label="Urgência" valor={dados.score.urgencia} />
+              </div>
+              {dados.score.como_fortalecer?.length ? (
+                <div className="mt-4">
+                  <p className="mb-1.5 text-sm font-medium text-[#cfcfe0]">Como fortalecer:</p>
+                  <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                    {dados.score.como_fortalecer.map((x, i) => (
+                      <li key={i}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </section>
+          )}
+
+          {dados.promessa && (
+            <Bloco icon={<Sparkles size={18} className="text-amber-300" />} titulo="Promessa (3 níveis)">
+              <div className="space-y-3">
+                {[
+                  { r: "Conservadora", t: dados.promessa.conservadora, c: "#7dd3fc" },
+                  { r: "Ousada", t: dados.promessa.ousada, c: "#c4b5fd" },
+                  { r: "Absurda", t: dados.promessa.absurda, c: "#fbbf24" },
+                ].map((n) => (
+                  <div key={n.r} className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <span
+                      className="mb-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
+                      style={{ background: `${n.c}22`, color: n.c }}
+                    >
+                      {n.r}
+                    </span>
+                    <p className="text-[15px] leading-relaxed text-[#ECECF4]">{n.t}</p>
+                  </div>
+                ))}
+              </div>
+            </Bloco>
+          )}
+
+          {dados.puv && (
+            <Bloco icon={<Target size={17} className="text-indigo-300" />} titulo="PUV — Proposta Única de Vendas">
+              <p className="text-[15px] leading-relaxed text-[#cfcfe0]">{dados.puv}</p>
+            </Bloco>
+          )}
+
+          {dados.mecanismo_unico && (
+            <Bloco icon={<Zap size={17} className="text-violet-300" />} titulo="Mecanismo único">
+              {dados.mecanismo_unico.nomes?.length ? (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {dados.mecanismo_unico.nomes.map((n, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-3 py-1 text-[13px] text-[#c4b5fd]"
+                    >
+                      {n}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {dados.mecanismo_unico.explicacao && (
+                <p className="text-sm leading-relaxed text-[#cfcfe0]">
+                  {dados.mecanismo_unico.explicacao}
+                </p>
+              )}
+            </Bloco>
+          )}
+
+          {(dados.fator_tempo || dados.urgencia) && (
+            <Bloco icon={<Zap size={17} className="text-emerald-300" />} titulo="Tempo & urgência">
+              {dados.fator_tempo && (
+                <p className="text-sm leading-relaxed text-[#cfcfe0]">
+                  <b className="text-[#ECECF4]">Fator tempo:</b> {dados.fator_tempo}
+                </p>
+              )}
+              {dados.urgencia && (
+                <p className="mt-2 text-sm leading-relaxed text-[#cfcfe0]">
+                  <b className="text-[#ECECF4]">Por que agir agora:</b> {dados.urgencia}
+                </p>
+              )}
+            </Bloco>
+          )}
+
+          {dados.provas?.length ? (
+            <Bloco icon={<CircleCheck size={17} className="text-emerald-300" />} titulo="Provas">
+              <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                {dados.provas.map((p, i) => (
+                  <li key={i}>{p}</li>
+                ))}
+              </ul>
+            </Bloco>
+          ) : null}
+
+          {dados.diferenciais?.length ? (
+            <Bloco icon={<Target size={17} className="text-indigo-300" />} titulo="Diferenciais">
+              <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                {dados.diferenciais.map((d, i) => (
+                  <li key={i}>{d}</li>
+                ))}
+              </ul>
+            </Bloco>
+          ) : null}
+
+          {dados.objecoes?.length ? (
+            <Bloco icon={<Quote size={17} className="text-amber-300" />} titulo="Quebra de objeções">
+              <div className="space-y-3">
+                {dados.objecoes.map((o, i) => (
+                  <div key={i}>
+                    <p className="text-sm font-medium text-[#ECECF4]">“{o.objecao}”</p>
+                    <p className="text-sm leading-relaxed text-[#cfcfe0]">{o.resposta}</p>
+                  </div>
+                ))}
+              </div>
+            </Bloco>
+          ) : null}
+
+          {dados.oferta?.length ? (
+            <Bloco icon={<Boxes size={17} className="text-violet-300" />} titulo="A oferta (o que recebe)">
+              <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                {dados.oferta.map((o, i) => (
+                  <li key={i}>{o}</li>
+                ))}
+              </ul>
+            </Bloco>
+          ) : null}
+
+          {dados.garantia && (
+            <Bloco icon={<ShieldCheck size={17} className="text-emerald-300" />} titulo="Garantia">
+              <p className="text-sm leading-relaxed text-[#cfcfe0]">{dados.garantia}</p>
+            </Bloco>
+          )}
+
+          {dados.cta?.length ? (
+            <Bloco icon={<ArrowRight size={17} className="text-indigo-300" />} titulo="CTA (chamadas para ação)">
+              <div className="flex flex-wrap gap-2">
+                {dados.cta.map((c, i) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[13px] text-[#ECECF4]"
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </Bloco>
+          ) : null}
+
+          {dados.formato_canal && (
+            <Bloco icon={<Megaphone size={17} className="text-amber-300" />} titulo="Pronto pro seu canal">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#ECECF4]">
+                {dados.formato_canal}
+              </p>
+            </Bloco>
+          )}
+
+          {dados.angulos?.length ? (
+            <Bloco icon={<Sparkles size={17} className="text-violet-300" />} titulo="Ângulos alternativos">
+              <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
+                {dados.angulos.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </Bloco>
+          ) : null}
+
+          {dados.quatro_perguntas && (
+            <Bloco icon={<CircleCheck size={17} className="text-indigo-300" />} titulo="O teste das 4 perguntas">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#c4b5fd]">É pra mim?</p>
+                  <p className="text-sm text-[#cfcfe0]">{dados.quatro_perguntas.e_pra_mim}</p>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#c4b5fd]">Resolve meu problema?</p>
+                  <p className="text-sm text-[#cfcfe0]">{dados.quatro_perguntas.resolve}</p>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#c4b5fd]">Por que funciona?</p>
+                  <p className="text-sm text-[#cfcfe0]">{dados.quatro_perguntas.por_que_funciona}</p>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#c4b5fd]">Por que agir agora?</p>
+                  <p className="text-sm text-[#cfcfe0]">{dados.quatro_perguntas.por_que_agora}</p>
+                </div>
+              </div>
+            </Bloco>
+          )}
+        </div>
       )}
     </div>
   );
