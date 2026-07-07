@@ -345,7 +345,7 @@ function TopBar({ modo, setModo }: { modo: Modo; setModo: (m: Modo) => void }) {
       <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
         {tab("nicho", "Pesquisa de nichos", <Search size={15} />)}
         {tab("persona", "Estudo de persona", <Users size={15} />)}
-        {tab("oferta", "Gerador de oferta", <Sparkles size={15} />)}
+        {tab("oferta", "PUV", <Sparkles size={15} />)}
       </div>
     </div>
   );
