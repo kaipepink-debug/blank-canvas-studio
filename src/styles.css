@@ -142,3 +142,28 @@
     color: var(--color-foreground);
   }
 }
+
+/*
+ * Exportar Pesquisa -> PDF (impressão nativa do navegador).
+ * Esconde a navegação/decorações (.no-print) e mantém o visual da tela,
+ * forçando a impressão das cores de fundo.
+ */
+@media print {
+  html,
+  body {
+    background: #07070c !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  section {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

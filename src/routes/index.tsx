@@ -21,6 +21,7 @@ import {
   Gauge,
   Megaphone,
   Quote,
+  Download,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
@@ -260,7 +261,7 @@ function Index() {
       {/* Grade futurista sutil */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
+        className="no-print pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage:
             "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)",
@@ -272,12 +273,12 @@ function Index() {
       />
       <div
         aria-hidden
-        className="pointer-events-none fixed -left-32 -top-40 h-[520px] w-[520px] rounded-full opacity-50 blur-[120px]"
+        className="no-print pointer-events-none fixed -left-32 -top-40 h-[520px] w-[520px] rounded-full opacity-50 blur-[120px]"
         style={{ background: "#4338ca" }}
       />
       <div
         aria-hidden
-        className="pointer-events-none fixed -bottom-44 -right-36 h-[480px] w-[480px] rounded-full opacity-50 blur-[120px]"
+        className="no-print pointer-events-none fixed -bottom-44 -right-36 h-[480px] w-[480px] rounded-full opacity-50 blur-[120px]"
         style={{ background: "#7c3aed" }}
       />
 
@@ -340,7 +341,7 @@ function TopBar({ modo, setModo }: { modo: Modo; setModo: (m: Modo) => void }) {
     </button>
   );
   return (
-    <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+    <div className="no-print mb-10 flex flex-wrap items-center justify-between gap-4">
       <Brand subtitle={false} />
       <div className="flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
         {tab("nicho", "Pesquisa de nichos", <Search size={15} />)}
@@ -631,7 +632,8 @@ function PersonaResult({
 }) {
   return (
     <div>
-      <div className="mb-6 flex items-center justify-end">
+      <div className="no-print mb-6 flex items-center justify-end gap-2">
+        <ExportarBtn />
         <button
           onClick={onReset}
           className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
@@ -1021,10 +1023,24 @@ function Bloco({
   );
 }
 
+// Botão de exportar: usa a impressão nativa do navegador (Salvar como PDF),
+// mantendo o visual da tela. É "no-print" para não aparecer no próprio PDF.
+function ExportarBtn() {
+  return (
+    <button
+      onClick={() => window.print()}
+      className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-4 py-2 text-sm text-[#c4b5fd] transition hover:bg-[#8b5cf6]/20"
+    >
+      <Download size={15} /> Exportar Pesquisa
+    </button>
+  );
+}
+
 function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }) {
   return (
     <div>
-      <div className="mb-6 flex items-center justify-end">
+      <div className="no-print mb-6 flex items-center justify-end gap-2">
+        <ExportarBtn />
         <button
           onClick={onReset}
           className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
@@ -1453,7 +1469,8 @@ function ResultsView({
   const validos = results.filter((r) => !r.erro);
   return (
     <div>
-      <div className="mb-6 flex items-center justify-end">
+      <div className="no-print mb-6 flex items-center justify-end gap-2">
+        <ExportarBtn />
         <button
           onClick={onReset}
           className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
