@@ -234,10 +234,11 @@ export const sistemaVendas = createServerFn({ method: "POST" })
         },
         body: JSON.stringify({
           model: MODELO,
-          max_tokens: 16000,
+          max_tokens: 14000,
           stream: true,
-          thinking: { type: "adaptive" },
-          output_config: { effort: "medium" },
+          // Tarefa gerativa e estruturada (JSON): sem "thinking" e com esforço
+          // baixo a resposta sai bem mais rápida, sem perder a estrutura.
+          output_config: { effort: "low" },
           system: SYSTEM,
           messages,
         }),

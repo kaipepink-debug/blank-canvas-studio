@@ -392,7 +392,13 @@ function Index() {
         </div>
       )}
 
-      {loading && <Overlay status={status} />}
+      {loading && (
+        <Overlay
+          status={status}
+          steps={modo === "system" ? SISTEMA_STEPS : undefined}
+          dur={modo === "system" ? 70000 : 100000}
+        />
+      )}
     </main>
   );
 }
@@ -2599,19 +2605,62 @@ const docTd: React.CSSProperties = {
 };
 
 /* --------------------------------------------------------------- Overlay */
-function Overlay({ status }: { status: string }) {
+const SISTEMA_STEPS = [
+  "Analisando o projeto e o público…",
+  "Definindo promessa e headline…",
+  "Montando o hero e a prova social…",
+  "Escrevendo as 22 seções…",
+  "Comparativos, passos e FAQ…",
+  "Fórmula psicológica e melhorias…",
+  "Finalizando o documento…",
+];
+
+function Overlay({
+  status,
+  steps,
+  dur = 75000,
+}: {
+  status: string;
+  steps?: string[];
+  dur?: number;
+}) {
+  const [pct, setPct] = useState(4);
+  useEffect(() => {
+    const started = Date.now();
+    const id = setInterval(() => {
+      const t = Math.min(1, (Date.now() - started) / dur);
+      const eased = 1 - Math.pow(1 - t, 2); // desacelera perto do fim
+      setPct(4 + eased * 88); // vai até ~92% e espera o resultado real
+    }, 250);
+    return () => clearInterval(id);
+  }, [dur]);
+
+  const passo =
+    steps && steps.length
+      ? steps[Math.min(steps.length - 1, Math.floor((pct / 100) * steps.length))]
+      : null;
+
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center backdrop-blur-md"
       style={{ background: "rgba(7,7,12,.72)" }}
     >
-      <div className="max-w-sm px-6 text-center">
-        <Loader2 size={48} className="mx-auto mb-5 animate-spin text-[#8b5cf6]" />
-        <h2 style={{ fontFamily: DISPLAY }} className="mb-2 text-xl font-semibold">
-          Pesquisando…
+      <div className="w-full max-w-sm px-6 text-center">
+        <Loader2 size={44} className="mx-auto mb-5 animate-spin text-[#8b5cf6]" />
+        <h2 style={{ fontFamily: DISPLAY }} className="mb-4 text-xl font-semibold">
+          {status}
         </h2>
-        <p className="text-sm text-[#9a9ab4]">{status}</p>
-        <p className="mt-2 text-xs text-[#6b6b86]">Não feche a aba. Leva ~1–2 minutos.</p>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full transition-[width] duration-300 ease-out"
+            style={{ width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }}
+          />
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs text-[#9a9ab4]">
+          <span>{passo ?? "Pesquisando na web…"}</span>
+          <span className="text-[#c4b5fd]">{Math.round(pct)}%</span>
+        </div>
+        <p className="mt-3 text-xs text-[#6b6b86]">Não feche a aba.</p>
       </div>
     </div>
   );
