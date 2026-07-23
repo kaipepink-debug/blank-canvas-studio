@@ -22,10 +22,12 @@ import {
   Megaphone,
   Quote,
   Download,
+  LayoutList,
 } from "lucide-react";
 import { analisarNicho, verificarSenha, type Analise } from "@/lib/analisarNicho";
 import { estudoPersona, type EstudoPersona } from "@/lib/estudoPersona";
 import { estudoOferta, type Oferta } from "@/lib/estudoOferta";
+import { sistemaVendas, type Sistema } from "@/lib/sistemaVendas";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -52,7 +54,7 @@ export const Route = createFileRoute("/")({
 const DISPLAY = '"Space Grotesk", system-ui, sans-serif';
 const BODY = '"DM Sans", system-ui, sans-serif';
 
-type Modo = "nicho" | "persona" | "oferta";
+type Modo = "nicho" | "persona" | "oferta" | "system";
 
 const NICHO_PADRAO = "pet shop";
 const CHIPS = [
@@ -66,7 +68,7 @@ const CHIPS = [
   "contabilidade",
 ];
 const EXEMPLO_PERSONA =
-  'Ex.: Quero criar um micro SaaS para alfabetização de crianças com Síndrome de Down. Quais problemas os pais dessas crianças vivem? Faça o estudo de persona dos pais.';
+  "Ex.: Quero criar um micro SaaS para alfabetização de crianças com Síndrome de Down. Quais problemas os pais dessas crianças vivem? Faça o estudo de persona dos pais.";
 
 type OfertaForm = {
   produto: string;
@@ -120,6 +122,45 @@ const CANAL_OPCOES = [
 ];
 const TICKET_OPCOES = ["Baixo (até R$97)", "Médio (R$97–997)", "Alto (R$997+)"];
 
+type SistemaForm = {
+  projeto: string;
+  publico: string;
+  promessa: string;
+  transformacao: string;
+  problema: string;
+  solucao: string;
+  beneficios: string;
+  funcionalidades: string;
+  provas: string;
+  diferenciais: string;
+  casos_uso: string;
+  oferta: string;
+  garantia: string;
+  preco: string;
+  cta: string;
+  marca_nome: string;
+  marca_cor: string;
+};
+const SISTEMA_FORM_INICIAL: SistemaForm = {
+  projeto: "",
+  publico: "",
+  promessa: "",
+  transformacao: "",
+  problema: "",
+  solucao: "",
+  beneficios: "",
+  funcionalidades: "",
+  provas: "",
+  diferenciais: "",
+  casos_uso: "",
+  oferta: "",
+  garantia: "",
+  preco: "",
+  cta: "",
+  marca_nome: "",
+  marca_cor: "",
+};
+
 function soma(n?: Analise["notas"]): number {
   if (!n) return 0;
   return (
@@ -150,9 +191,7 @@ function Brand({ subtitle = true }: { subtitle?: boolean }) {
       </div>
       <div style={{ fontFamily: DISPLAY }} className="text-lg font-semibold tracking-tight">
         Agent SaaS Skill
-        {subtitle && (
-          <span className="font-medium text-[#9a9ab4]"> · pesquisa de micro SaaS</span>
-        )}
+        {subtitle && <span className="font-medium text-[#9a9ab4]"> · pesquisa de micro SaaS</span>}
       </div>
     </div>
   );
@@ -175,6 +214,10 @@ function Index() {
   // Modo oferta
   const [oForm, setOForm] = useState<OfertaForm>(OFERTA_FORM_INICIAL);
   const [ofertaResult, setOfertaResult] = useState<Oferta | null>(null);
+
+  // Modo system (estrutura da página de vendas)
+  const [sForm, setSForm] = useState<SistemaForm>(SISTEMA_FORM_INICIAL);
+  const [sistemaResult, setSistemaResult] = useState<Sistema | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -253,6 +296,31 @@ function Index() {
     setLoading(false);
   }
 
+  async function onSystem(e: React.FormEvent) {
+    e.preventDefault();
+    if (
+      !sForm.projeto.trim() ||
+      !sForm.publico.trim() ||
+      !sForm.promessa.trim() ||
+      !sForm.transformacao.trim()
+    )
+      return;
+    setLoading(true);
+    setSistemaResult(null);
+    setStatus("Montando a estrutura da sua página de vendas…");
+    let r: Sistema;
+    try {
+      r = await sistemaVendas({ data: { ...sForm, senha } });
+    } catch (err: any) {
+      r = {
+        erro: true,
+        mensagem: `Falha ao chamar o servidor: ${err?.message ?? String(err)}`,
+      };
+    }
+    setSistemaResult(r);
+    setLoading(false);
+  }
+
   return (
     <main
       className="relative min-h-screen overflow-x-hidden px-5 py-10 text-[#ECECF4]"
@@ -310,15 +378,16 @@ function Index() {
             ) : (
               <PersonaResult dados={personaResult} onReset={() => setPersonaResult(null)} />
             )
-          ) : !ofertaResult ? (
-            <OfertaView
-              form={oForm}
-              setForm={setOForm}
-              onSubmit={onOferta}
-              loading={loading}
-            />
+          ) : modo === "oferta" ? (
+            !ofertaResult ? (
+              <OfertaView form={oForm} setForm={setOForm} onSubmit={onOferta} loading={loading} />
+            ) : (
+              <OfertaResult dados={ofertaResult} onReset={() => setOfertaResult(null)} />
+            )
+          ) : !sistemaResult ? (
+            <SistemaView form={sForm} setForm={setSForm} onSubmit={onSystem} loading={loading} />
           ) : (
-            <OfertaResult dados={ofertaResult} onReset={() => setOfertaResult(null)} />
+            <SistemaDoc dados={sistemaResult} onReset={() => setSistemaResult(null)} />
           )}
         </div>
       )}
@@ -347,6 +416,7 @@ function TopBar({ modo, setModo }: { modo: Modo; setModo: (m: Modo) => void }) {
         {tab("nicho", "Pesquisa de nichos", <Search size={15} />)}
         {tab("persona", "Estudo de persona", <Users size={15} />)}
         {tab("oferta", "PUV", <Sparkles size={15} />)}
+        {tab("system", "System", <LayoutList size={15} />)}
       </div>
     </div>
   );
@@ -404,9 +474,7 @@ function LoginGate({ onOk }: { onOk: (senha: string) => void }) {
           placeholder="••••••••"
           className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3.5 text-base text-[#ECECF4] outline-none transition placeholder:text-[#6b6b86] focus:border-[#8b5cf6] focus:ring-4 focus:ring-[#8b5cf6]/40"
         />
-        {erro && (
-          <p className="mt-2 rounded-lg bg-red-500/10 p-2 text-xs text-red-200">{erro}</p>
-        )}
+        {erro && <p className="mt-2 rounded-lg bg-red-500/10 p-2 text-xs text-red-200">{erro}</p>}
         <button
           type="submit"
           disabled={verificando}
@@ -623,13 +691,7 @@ function PersonaView({
   );
 }
 
-function PersonaResult({
-  dados,
-  onReset,
-}: {
-  dados: EstudoPersona;
-  onReset: () => void;
-}) {
+function PersonaResult({ dados, onReset }: { dados: EstudoPersona; onReset: () => void }) {
   return (
     <div>
       <div className="no-print mb-6 flex items-center justify-end gap-2">
@@ -683,10 +745,7 @@ function PersonaResult({
 
           <div className="mt-6 space-y-4">
             {(dados.secoes ?? []).map((s, i) => (
-              <section
-                key={i}
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-5"
-              >
+              <section key={i} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                 <h3
                   style={{ fontFamily: DISPLAY }}
                   className="mb-2 text-[17px] font-semibold text-[#ECECF4]"
@@ -954,11 +1013,7 @@ function OfertaView({
               onChange={set("oferta_stack")}
               textarea
             />
-            <Campo
-              label="Garantia disponível"
-              value={form.garantia}
-              onChange={set("garantia")}
-            />
+            <Campo label="Garantia disponível" value={form.garantia} onChange={set("garantia")} />
           </div>
         )}
 
@@ -975,9 +1030,7 @@ function OfertaView({
           Gerar minha oferta
           <ArrowRight size={18} strokeWidth={2.4} />
         </button>
-        <p className="text-center text-[13px] text-[#9a9ab4]">
-          Gera em ~20–40s · sem tráfego pago
-        </p>
+        <p className="text-center text-[13px] text-[#9a9ab4]">Gera em ~20–40s · sem tráfego pago</p>
       </form>
     </div>
   );
@@ -1096,7 +1149,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           )}
 
           {dados.promessa && (
-            <Bloco icon={<Sparkles size={18} className="text-amber-300" />} titulo="Promessa (3 níveis)">
+            <Bloco
+              icon={<Sparkles size={18} className="text-amber-300" />}
+              titulo="Promessa (3 níveis)"
+            >
               <div className="space-y-3">
                 {[
                   { r: "Conservadora", t: dados.promessa.conservadora, c: "#7dd3fc" },
@@ -1118,7 +1174,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           )}
 
           {dados.puv && (
-            <Bloco icon={<Target size={17} className="text-indigo-300" />} titulo="PUV — Proposta Única de Vendas">
+            <Bloco
+              icon={<Target size={17} className="text-indigo-300" />}
+              titulo="PUV — Proposta Única de Vendas"
+            >
               <p className="text-[15px] leading-relaxed text-[#cfcfe0]">{dados.puv}</p>
             </Bloco>
           )}
@@ -1181,7 +1240,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           ) : null}
 
           {dados.objecoes?.length ? (
-            <Bloco icon={<Quote size={17} className="text-amber-300" />} titulo="Quebra de objeções">
+            <Bloco
+              icon={<Quote size={17} className="text-amber-300" />}
+              titulo="Quebra de objeções"
+            >
               <div className="space-y-3">
                 {dados.objecoes.map((o, i) => (
                   <div key={i}>
@@ -1194,7 +1256,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           ) : null}
 
           {dados.oferta?.length ? (
-            <Bloco icon={<Boxes size={17} className="text-violet-300" />} titulo="A oferta (o que recebe)">
+            <Bloco
+              icon={<Boxes size={17} className="text-violet-300" />}
+              titulo="A oferta (o que recebe)"
+            >
               <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
                 {dados.oferta.map((o, i) => (
                   <li key={i}>{o}</li>
@@ -1210,7 +1275,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           )}
 
           {dados.cta?.length ? (
-            <Bloco icon={<ArrowRight size={17} className="text-indigo-300" />} titulo="CTA (chamadas para ação)">
+            <Bloco
+              icon={<ArrowRight size={17} className="text-indigo-300" />}
+              titulo="CTA (chamadas para ação)"
+            >
               <div className="flex flex-wrap gap-2">
                 {dados.cta.map((c, i) => (
                   <span
@@ -1225,7 +1293,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           ) : null}
 
           {dados.formato_canal && (
-            <Bloco icon={<Megaphone size={17} className="text-amber-300" />} titulo="Pronto pro seu canal">
+            <Bloco
+              icon={<Megaphone size={17} className="text-amber-300" />}
+              titulo="Pronto pro seu canal"
+            >
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#ECECF4]">
                 {dados.formato_canal}
               </p>
@@ -1233,7 +1304,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           )}
 
           {dados.angulos?.length ? (
-            <Bloco icon={<Sparkles size={17} className="text-violet-300" />} titulo="Ângulos alternativos">
+            <Bloco
+              icon={<Sparkles size={17} className="text-violet-300" />}
+              titulo="Ângulos alternativos"
+            >
               <ul className="ml-4 list-disc space-y-1 text-sm text-[#cfcfe0]">
                 {dados.angulos.map((a, i) => (
                   <li key={i}>{a}</li>
@@ -1243,7 +1317,10 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
           ) : null}
 
           {dados.quatro_perguntas && (
-            <Bloco icon={<CircleCheck size={17} className="text-indigo-300" />} titulo="O teste das 4 perguntas">
+            <Bloco
+              icon={<CircleCheck size={17} className="text-indigo-300" />}
+              titulo="O teste das 4 perguntas"
+            >
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-[13px] font-semibold text-[#c4b5fd]">É pra mim?</p>
@@ -1255,7 +1332,9 @@ function OfertaResult({ dados, onReset }: { dados: Oferta; onReset: () => void }
                 </div>
                 <div>
                   <p className="text-[13px] font-semibold text-[#c4b5fd]">Por que funciona?</p>
-                  <p className="text-sm text-[#cfcfe0]">{dados.quatro_perguntas.por_que_funciona}</p>
+                  <p className="text-sm text-[#cfcfe0]">
+                    {dados.quatro_perguntas.por_que_funciona}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[13px] font-semibold text-[#c4b5fd]">Por que agir agora?</p>
@@ -1326,8 +1405,8 @@ function Persona4D({
         <Boxes size={20} className="text-[#c4b5fd]" /> Persona em 4D
       </h3>
       <p className="mb-4 text-sm text-[#9a9ab4]">
-        Arraste para girar. Clique em um eixo para expandir os pontos mais agudos
-        e como o micro SaaS resolve.
+        Arraste para girar. Clique em um eixo para expandir os pontos mais agudos e como o micro
+        SaaS resolve.
       </p>
 
       <div className="grid items-center gap-6 md:grid-cols-2">
@@ -1347,11 +1426,7 @@ function Persona4D({
               transform: `rotateX(${rx}deg) rotateY(${ry}deg)`,
             }}
           >
-            <svg
-              width={SIZE}
-              height={SIZE}
-              className="pointer-events-none absolute inset-0"
-            >
+            <svg width={SIZE} height={SIZE} className="pointer-events-none absolute inset-0">
               {EIXOS_4D.map((e, i) => (
                 <line
                   key={e.key}
@@ -1376,8 +1451,7 @@ function Persona4D({
                 height: 96,
                 transform: "translate(-50%,-50%)",
                 background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-                boxShadow:
-                  "0 0 40px rgba(139,92,246,.6), inset 0 0 20px rgba(255,255,255,.15)",
+                boxShadow: "0 0 40px rgba(139,92,246,.6), inset 0 0 20px rgba(255,255,255,.15)",
               }}
             >
               <span style={{ fontFamily: DISPLAY }} className="text-2xl font-bold text-white">
@@ -1459,13 +1533,7 @@ function Persona4D({
 }
 
 /* --------------------------------------------------------------- Results */
-function ResultsView({
-  results,
-  onReset,
-}: {
-  results: Analise[];
-  onReset: () => void;
-}) {
+function ResultsView({ results, onReset }: { results: Analise[]; onReset: () => void }) {
   const validos = results.filter((r) => !r.erro);
   return (
     <div>
@@ -1568,9 +1636,7 @@ function NichoCard({ a }: { a: Analise }) {
         <h3 style={{ fontFamily: DISPLAY }} className="text-xl font-bold">
           {a.nicho}
         </h3>
-        <p className="mt-2 text-sm text-[#9a9ab4]">
-          Não foi possível analisar este nicho.
-        </p>
+        <p className="mt-2 text-sm text-[#9a9ab4]">Não foi possível analisar este nicho.</p>
         {a.mensagem && (
           <p className="mt-2 break-words rounded-lg bg-red-500/10 p-3 text-xs text-red-200">
             {a.mensagem}
@@ -1671,10 +1737,7 @@ function NichoCard({ a }: { a: Analise }) {
           </H3>
           <div className="space-y-3">
             {a.personas.map((p, i) => (
-              <div
-                key={i}
-                className="rounded-xl border-l-2 border-amber-400 bg-amber-400/5 p-4"
-              >
+              <div key={i} className="rounded-xl border-l-2 border-amber-400 bg-amber-400/5 p-4">
                 <p
                   style={{ fontFamily: DISPLAY }}
                   className="text-[15px] font-semibold text-[#ECECF4]"
@@ -1688,15 +1751,11 @@ function NichoCard({ a }: { a: Analise }) {
                 <p className="mt-1 text-sm text-[#cfcfe0]">
                   <b>Dia a dia:</b> {p.dia_a_dia}
                 </p>
-                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
-                  Dores principais
-                </p>
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Dores principais</p>
                 <List items={p.dores_principais} />
                 <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Objeções</p>
                 <List items={p.objecoes} />
-                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
-                  Gatilhos de compra
-                </p>
+                <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">Gatilhos de compra</p>
                 <List items={p.gatilhos_de_compra} />
                 <p className="mb-1 mt-2 text-sm font-semibold text-[#ECECF4]">
                   Onde encontrar / canais
@@ -1720,10 +1779,7 @@ function NichoCard({ a }: { a: Analise }) {
           </H3>
           <div className="grid gap-3">
             {a.ideias_saas.map((idea, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-4"
-              >
+              <div key={i} className="rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-4">
                 <p
                   style={{ fontFamily: DISPLAY }}
                   className="text-[15px] font-semibold text-[#ECECF4]"
@@ -1801,6 +1857,747 @@ function NichoCard({ a }: { a: Analise }) {
   );
 }
 
+/* --------------------------------------------------------------- System */
+function SistemaView({
+  form,
+  setForm,
+  onSubmit,
+  loading,
+}: {
+  form: SistemaForm;
+  setForm: (f: SistemaForm) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+}) {
+  const [mais, setMais] = useState(false);
+  const set = (k: keyof SistemaForm) => (v: string) => setForm({ ...form, [k]: v });
+  const pronto =
+    form.projeto.trim() !== "" &&
+    form.publico.trim() !== "" &&
+    form.promessa.trim() !== "" &&
+    form.transformacao.trim() !== "";
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Hero
+        eyebrow="Construtor da página de vendas com IA"
+        titulo="Monte o"
+        destaque="System do seu projeto"
+        sub="Responda sobre o projeto e a promessa. A IA entrega a estrutura completa da sua página de vendas — 22 seções preenchidas, fórmula psicológica e melhorias — pronta pra virar página real."
+      />
+      <form
+        onSubmit={onSubmit}
+        className="mt-9 space-y-5 rounded-[22px] border border-white/10 p-5 backdrop-blur-xl"
+        style={CARD_STYLE}
+      >
+        <div className="space-y-4">
+          <Campo
+            label="O que é o projeto/produto?"
+            value={form.projeto}
+            onChange={set("projeto")}
+            placeholder="Ex.: plataforma de pagamentos para infoprodutores"
+            textarea
+          />
+          <Campo
+            label="Para quem, exatamente?"
+            hint="público-alvo"
+            value={form.publico}
+            onChange={set("publico")}
+            placeholder="Ex.: infoprodutores e criadores de conteúdo no Brasil"
+          />
+          <Campo
+            label="Qual a promessa principal?"
+            hint="o que a pessoa ganha"
+            value={form.promessa}
+            onChange={set("promessa")}
+            placeholder="Ex.: tudo pra vender online em uma só plataforma, do zero aos 7 dígitos"
+            textarea
+          />
+          <Campo
+            label="Qual a transformação? (antes → depois)"
+            value={form.transformacao}
+            onChange={set("transformacao")}
+            placeholder="Ex.: de 6 ferramentas separadas e caras → uma operação integrada e barata"
+            textarea
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMais(!mais)}
+          className="cursor-pointer text-sm text-[#c4b5fd] hover:underline"
+        >
+          {mais
+            ? "− Ocultar detalhes"
+            : "+ Adicionar detalhes (opcional — a IA preenche o que faltar)"}
+        </button>
+
+        {mais && (
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <Campo
+              label="Problema / dores atuais"
+              value={form.problema}
+              onChange={set("problema")}
+              textarea
+            />
+            <Campo
+              label="Como a solução resolve"
+              value={form.solucao}
+              onChange={set("solucao")}
+              textarea
+            />
+            <Campo
+              label="Principais benefícios"
+              value={form.beneficios}
+              onChange={set("beneficios")}
+              textarea
+            />
+            <Campo
+              label="Funcionalidades / módulos"
+              value={form.funcionalidades}
+              onChange={set("funcionalidades")}
+              textarea
+            />
+            <Campo
+              label="Provas / números / casos"
+              hint="métricas, resultados, depoimentos"
+              value={form.provas}
+              onChange={set("provas")}
+              textarea
+            />
+            <Campo
+              label="Diferenciais vs. concorrentes"
+              value={form.diferenciais}
+              onChange={set("diferenciais")}
+              textarea
+            />
+            <Campo
+              label="Casos de uso (pra quem serve)"
+              value={form.casos_uso}
+              onChange={set("casos_uso")}
+            />
+            <Campo label="Oferta / bônus" value={form.oferta} onChange={set("oferta")} textarea />
+            <Campo label="Garantia" value={form.garantia} onChange={set("garantia")} />
+            <Campo label="Preço / ticket" value={form.preco} onChange={set("preco")} />
+            <Campo
+              label="CTA desejado"
+              value={form.cta}
+              onChange={set("cta")}
+              placeholder="Ex.: Criar conta grátis"
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo label="Nome da marca" value={form.marca_nome} onChange={set("marca_nome")} />
+              <Campo
+                label="Cor de acento (hex)"
+                hint="opcional"
+                value={form.marca_cor}
+                onChange={set("marca_cor")}
+                placeholder="#141414"
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || !pronto}
+          className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl py-4 text-base font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            fontFamily: BODY,
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            boxShadow: "0 12px 30px -8px rgba(99,102,241,.6)",
+          }}
+        >
+          Gerar o System
+          <ArrowRight size={18} strokeWidth={2.4} />
+        </button>
+        <p className="text-center text-[13px] text-[#9a9ab4]">
+          Gera em ~30–60s · documento completo
+        </p>
+      </form>
+    </div>
+  );
+}
+
+// Documento branco/preto (limpo) no modelo da estrutura de página de vendas.
+const DOC = {
+  ink: "#141414",
+  soft: "#3d3d3d",
+  muted: "#7a7a7a",
+  line: "#e6e6e6",
+  frame: "#dddddd",
+  card2: "#f7f7f6",
+};
+
+function SistemaDoc({ dados, onReset }: { dados: Sistema; onReset: () => void }) {
+  return (
+    <div>
+      <style>{`@media print{body,main{background:#fff !important}.no-print{display:none !important}}`}</style>
+      <div className="no-print mb-6 flex items-center justify-end gap-2">
+        <ExportarBtn />
+        <button
+          onClick={onReset}
+          className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-[#ECECF4] transition hover:bg-white/[0.08]"
+        >
+          <RotateCcw size={15} /> Novo System
+        </button>
+      </div>
+
+      {dados.erro ? (
+        <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
+          <h3 style={{ fontFamily: DISPLAY }} className="text-xl font-bold">
+            Não foi possível montar o System.
+          </h3>
+          {dados.mensagem && (
+            <p className="mt-2 break-words rounded-lg bg-red-500/10 p-3 text-xs text-red-200">
+              {dados.mensagem}
+            </p>
+          )}
+        </section>
+      ) : (
+        <article
+          className="mx-auto max-w-[1000px] overflow-hidden rounded-2xl"
+          style={{ background: "#ffffff", color: DOC.ink, fontFamily: BODY, lineHeight: 1.6 }}
+        >
+          {/* Hero */}
+          <header style={{ padding: "44px 40px 34px", borderBottom: `1px solid ${DOC.line}` }}>
+            {dados.eyebrow && (
+              <span
+                style={{
+                  display: "inline-block",
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  letterSpacing: ".12em",
+                  textTransform: "uppercase",
+                  color: "#fff",
+                  background: DOC.ink,
+                  borderRadius: 999,
+                  padding: "5px 13px",
+                  marginBottom: 18,
+                }}
+              >
+                {dados.eyebrow}
+              </span>
+            )}
+            <h1
+              style={{
+                fontFamily: DISPLAY,
+                fontSize: "clamp(26px,4.4vw,42px)",
+                fontWeight: 800,
+                letterSpacing: "-.02em",
+                lineHeight: 1.1,
+                margin: 0,
+              }}
+            >
+              {dados.titulo ?? "Página de Vendas"}
+            </h1>
+            {dados.resumo && (
+              <p style={{ color: DOC.soft, fontSize: 16, maxWidth: 680, margin: "16px 0 0" }}>
+                {dados.resumo}
+              </p>
+            )}
+            {dados.tags?.length ? (
+              <div style={{ marginTop: 22, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {dados.tags.map((t, i) => (
+                  <span key={i} style={docTag}>
+                    {t}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </header>
+
+          <div style={{ padding: "8px 40px 40px" }}>
+            {/* Intro: 3 perguntas */}
+            {dados.intro?.length ? (
+              <DocSection num="00" titulo="O que é e por que importa">
+                <div className="grid gap-4 sm:grid-cols-3" style={{ marginTop: 4 }}>
+                  {dados.intro.map((p, i) => (
+                    <div key={i} style={docCard}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 6px" }}>
+                        {i + 1}. “{p.pergunta}”
+                      </h3>
+                      <p style={{ color: DOC.muted, fontSize: 13.5, margin: 0 }}>{p.resposta}</p>
+                    </div>
+                  ))}
+                </div>
+              </DocSection>
+            ) : null}
+
+            {/* Identidade */}
+            {dados.identidade && (
+              <DocSection num="01" titulo="Identidade & Branding" k="a base visual">
+                {dados.identidade.resumo && (
+                  <p style={{ color: DOC.soft, maxWidth: 780, margin: "0 0 16px", fontSize: 15 }}>
+                    {dados.identidade.resumo}
+                  </p>
+                )}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {dados.identidade.cor_acento && (
+                    <div style={docCard}>
+                      <h3 style={docCardH}>Cor de acento</h3>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                        <span
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 9,
+                            border: `1px solid ${DOC.line}`,
+                            background: dados.identidade.cor_acento,
+                          }}
+                        />
+                        <code style={{ fontSize: 12.5, color: DOC.muted }}>
+                          {dados.identidade.cor_acento}
+                        </code>
+                      </div>
+                    </div>
+                  )}
+                  {dados.identidade.tipografia && (
+                    <div style={docCard}>
+                      <h3 style={docCardH}>Tipografia</h3>
+                      <p style={docCardP}>{dados.identidade.tipografia}</p>
+                    </div>
+                  )}
+                  {dados.identidade.principio && (
+                    <div style={docCard}>
+                      <h3 style={docCardH}>Princípio</h3>
+                      <p style={docCardP}>{dados.identidade.principio}</p>
+                    </div>
+                  )}
+                </div>
+              </DocSection>
+            )}
+
+            {/* As 22 seções */}
+            {dados.secoes?.length ? (
+              <DocSection num="22" titulo="A Estrutura Completa" k="seção por seção">
+                <div style={{ marginTop: 4 }}>
+                  {dados.secoes.map((s, i) => (
+                    <DocBlock key={i} s={s} />
+                  ))}
+                </div>
+              </DocSection>
+            ) : null}
+
+            {/* Fórmula */}
+            {dados.formula?.length ? (
+              <DocSection num="★" titulo="A Fórmula Psicológica" k="a ordem ideal">
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    alignItems: "center",
+                    marginTop: 4,
+                  }}
+                >
+                  {dados.formula.map((f, i) => (
+                    <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <span style={f.destaque ? docChainHi : docChain}>{f.etapa}</span>
+                      {i < dados.formula!.length - 1 && (
+                        <span style={{ color: DOC.ink, fontWeight: 800 }}>→</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </DocSection>
+            ) : null}
+
+            {/* Melhorias */}
+            {dados.melhorias?.length ? (
+              <DocSection num="➕" titulo="Melhorias sugeridas" k="para converter mais">
+                <div className="grid gap-4 sm:grid-cols-3" style={{ marginTop: 4 }}>
+                  {dados.melhorias.map((m, i) => (
+                    <div key={i} style={docCard}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 6px" }}>
+                        {m.titulo}
+                      </h3>
+                      <p style={docCardP}>{m.descricao}</p>
+                    </div>
+                  ))}
+                </div>
+                {dados.bloco_final && (
+                  <div
+                    style={{
+                      marginTop: 18,
+                      background: DOC.card2,
+                      border: `1px solid ${DOC.line}`,
+                      borderRadius: 14,
+                      padding: 22,
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: 16, color: DOC.ink, fontWeight: 600 }}>
+                      “{dados.bloco_final}”
+                    </p>
+                  </div>
+                )}
+              </DocSection>
+            ) : null}
+          </div>
+        </article>
+      )}
+    </div>
+  );
+}
+
+const docTag: React.CSSProperties = {
+  fontSize: 12.5,
+  color: DOC.soft,
+  background: "#fff",
+  border: `1px solid ${DOC.line}`,
+  borderRadius: 999,
+  padding: "6px 13px",
+};
+const docCard: React.CSSProperties = {
+  background: "#fff",
+  border: `1px solid ${DOC.line}`,
+  borderRadius: 14,
+  padding: 18,
+};
+const docCardH: React.CSSProperties = { fontSize: 15, fontWeight: 700, margin: 0 };
+const docCardP: React.CSSProperties = { color: DOC.muted, fontSize: 13.5, margin: "6px 0 0" };
+const docChain: React.CSSProperties = {
+  background: "#fff",
+  border: `1px solid ${DOC.frame}`,
+  borderRadius: 999,
+  padding: "7px 14px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: DOC.ink,
+};
+const docChainHi: React.CSSProperties = {
+  ...docChain,
+  background: DOC.ink,
+  color: "#fff",
+  border: `1px solid ${DOC.ink}`,
+};
+
+function DocSection({
+  num,
+  titulo,
+  k,
+  children,
+}: {
+  num: string;
+  titulo: string;
+  k?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section style={{ padding: "34px 0", borderBottom: `1px solid ${DOC.line}` }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 18,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12.5,
+            fontWeight: 800,
+            color: "#fff",
+            background: DOC.ink,
+            borderRadius: 8,
+            padding: "3px 10px",
+          }}
+        >
+          {num}
+        </span>
+        <h2
+          style={{
+            fontFamily: DISPLAY,
+            fontSize: "clamp(20px,3vw,28px)",
+            fontWeight: 800,
+            margin: 0,
+          }}
+        >
+          {titulo}
+        </h2>
+        {k && <span style={{ color: DOC.muted, fontSize: 14 }}>{k}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function DocChips({ itens }: { itens?: string[] }) {
+  if (!itens?.length) return null;
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+      {itens.map((c, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize: 12.5,
+            border: `1px solid ${DOC.frame}`,
+            borderRadius: 8,
+            padding: "5px 11px",
+            color: DOC.soft,
+            background: "#fff",
+          }}
+        >
+          {c}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function DocBlock({ s }: { s: NonNullable<Sistema["secoes"]>[number] }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "44px 1fr",
+        gap: 16,
+        background: s.destaque ? DOC.card2 : "#fff",
+        border: `1px solid ${s.destaque ? DOC.frame : DOC.line}`,
+        borderRadius: 16,
+        padding: "18px 20px",
+        marginBottom: 12,
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 11,
+          background: DOC.ink,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 800,
+          fontSize: 15,
+          color: "#fff",
+        }}
+      >
+        {s.n}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <h3 style={{ fontFamily: DISPLAY, fontSize: 17, fontWeight: 800, margin: 0 }}>
+            {s.titulo}
+          </h3>
+          {s.chave && <span style={{ fontSize: 12.5, color: DOC.muted }}>{s.chave}</span>}
+        </div>
+        {s.proposito && (
+          <p style={{ color: DOC.soft, fontSize: 14, margin: "6px 0 0" }}>{s.proposito}</p>
+        )}
+
+        {s.tipo === "hero" && s.hero && (
+          <div
+            style={{
+              background: DOC.ink,
+              borderRadius: 14,
+              padding: "22px 20px",
+              marginTop: 12,
+              color: "#fff",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                opacity: 0.85,
+              }}
+            >
+              {s.hero.eyebrow}
+            </div>
+            <h4
+              style={{
+                fontFamily: DISPLAY,
+                fontSize: "clamp(19px,3vw,26px)",
+                fontWeight: 800,
+                margin: "10px 0",
+              }}
+            >
+              {s.hero.headline}
+            </h4>
+            <p
+              style={{
+                color: "rgba(255,255,255,.65)",
+                maxWidth: 540,
+                margin: "0 0 14px",
+                fontSize: 14,
+              }}
+            >
+              {s.hero.subheadline}
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  borderRadius: 10,
+                  padding: "9px 16px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  background: "#fff",
+                  color: DOC.ink,
+                }}
+              >
+                {s.hero.cta_primario}
+              </span>
+              {s.hero.cta_secundario && (
+                <span
+                  style={{
+                    borderRadius: 10,
+                    padding: "9px 16px",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    border: "1px solid rgba(255,255,255,.25)",
+                    color: "#fff",
+                  }}
+                >
+                  {s.hero.cta_secundario}
+                </span>
+              )}
+            </div>
+            {s.hero.bullets?.length ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  display: "flex",
+                  gap: 16,
+                  flexWrap: "wrap",
+                  fontSize: 12.5,
+                  color: "rgba(255,255,255,.7)",
+                }}
+              >
+                {s.hero.bullets.map((b, i) => (
+                  <span key={i}>{b}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {s.tipo === "antes_depois" && s.antes_depois?.length ? (
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+            {s.antes_depois.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto 1fr",
+                  gap: 12,
+                  alignItems: "center",
+                  background: "#fff",
+                  border: `1px solid ${DOC.line}`,
+                  borderRadius: 12,
+                  padding: "11px 14px",
+                }}
+              >
+                <span style={{ color: DOC.muted, fontSize: 13.5, textDecoration: "line-through" }}>
+                  {r.antes}
+                </span>
+                <span style={{ fontWeight: 800 }}>→</span>
+                <span style={{ fontSize: 13.5, fontWeight: 700 }}>{r.depois}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {s.tipo === "comparativo" && s.comparativo?.length ? (
+          <table
+            style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, fontSize: 13.7 }}
+          >
+            <thead>
+              <tr>
+                <th style={{ ...docTh, color: DOC.muted }}>Mercado</th>
+                <th style={{ ...docTh, color: DOC.ink }}>Este projeto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.comparativo.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ ...docTd, color: DOC.muted }}>{r.de}</td>
+                  <td style={{ ...docTd, color: DOC.ink, fontWeight: 700 }}>{r.para}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+
+        {s.tipo === "passos" && s.itens?.length ? (
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+            {s.itens.map((p, i) => (
+              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <span
+                  style={{
+                    background: "#fff",
+                    border: `1px solid ${DOC.line}`,
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    fontSize: 14,
+                    minWidth: 120,
+                    textAlign: "center",
+                  }}
+                >
+                  {p}
+                </span>
+                {i < s.itens!.length - 1 && <span style={{ fontWeight: 800 }}>→</span>}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {s.tipo === "faq" && s.itens?.length ? (
+          <div style={{ marginTop: 12 }}>
+            {s.itens.map((q, i) => (
+              <div
+                key={i}
+                style={{
+                  background: DOC.card2,
+                  border: `1px solid ${DOC.line}`,
+                  borderRadius: 10,
+                  padding: "11px 14px",
+                  marginTop: 8,
+                  fontSize: 13.7,
+                  fontWeight: 600,
+                }}
+              >
+                ? {q}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {(s.tipo === "chips" || s.tipo === "bons" || s.tipo === "ruins" || !s.tipo) &&
+        s.itens?.length ? (
+          <DocChips itens={s.itens} />
+        ) : null}
+
+        {s.tipo === "lista" && s.itens?.length ? (
+          <ul style={{ margin: "11px 0 0", paddingLeft: 18 }}>
+            {s.itens.map((x, i) => (
+              <li key={i} style={{ margin: "3px 0", fontSize: 13.7, color: DOC.soft }}>
+                {x}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+const docTh: React.CSSProperties = {
+  padding: "11px 14px",
+  textAlign: "left",
+  borderBottom: `1px solid ${DOC.line}`,
+  background: DOC.card2,
+  fontSize: 12,
+  textTransform: "uppercase",
+  letterSpacing: ".05em",
+};
+const docTd: React.CSSProperties = {
+  padding: "11px 14px",
+  textAlign: "left",
+  borderBottom: `1px solid ${DOC.line}`,
+};
+
 /* --------------------------------------------------------------- Overlay */
 function Overlay({ status }: { status: string }) {
   return (
@@ -1814,9 +2611,7 @@ function Overlay({ status }: { status: string }) {
           Pesquisando…
         </h2>
         <p className="text-sm text-[#9a9ab4]">{status}</p>
-        <p className="mt-2 text-xs text-[#6b6b86]">
-          Não feche a aba. Leva ~1–2 minutos.
-        </p>
+        <p className="mt-2 text-xs text-[#6b6b86]">Não feche a aba. Leva ~1–2 minutos.</p>
       </div>
     </div>
   );
